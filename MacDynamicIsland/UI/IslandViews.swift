@@ -1737,40 +1737,78 @@ private struct HomeMediaSection: View {
                 .frame(height: 136, alignment: .top)
             }
         } else {
-            SpotifyEmptyState()
+            SpotifyReadyState(model: model)
         }
     }
 }
 
-private struct SpotifyEmptyState: View {
+private struct SpotifyReadyState: View {
+    @Bindable var model: IslandModel
+
     var body: some View {
-        VStack(spacing: 13) {
-            Image(systemName: "music.note.house.fill")
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.55))
-
-            VStack(spacing: 4) {
-                Text("Nothing played yet")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("Play something in Spotify once and it will remain available here.")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.42))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 250)
+        HStack(alignment: .top, spacing: 14) {
+            Group {
+                if let icon = spotifyIcon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 42, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.72))
+                }
             }
+            .frame(width: 136, height: 136)
 
-            Button("Open Spotify") {
-                guard let url = NSWorkspace.shared.urlForApplication(
-                    withBundleIdentifier: "com.spotify.client"
-                ) else { return }
-                NSWorkspace.shared.openApplication(
-                    at: url,
-                    configuration: NSWorkspace.OpenConfiguration()
-                ) { _, _ in }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Spotify")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("Ready to play")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.58))
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 30) {
+                    MediaButton(
+                        systemName: "backward.end.fill",
+                        label: "Previous",
+                        size: 18,
+                        isEnabled: isSpotifyInstalled
+                    ) { model.sendToSpotify(.previous) }
+
+                    MediaButton(
+                        systemName: "play.fill",
+                        label: "Play Spotify",
+                        size: 27,
+                        isEnabled: isSpotifyInstalled
+                    ) { model.sendToSpotify(.play) }
+
+                    MediaButton(
+                        systemName: "forward.end.fill",
+                        label: "Next",
+                        size: 18,
+                        isEnabled: isSpotifyInstalled
+                    ) { model.sendToSpotify(.next) }
+                }
+                .frame(maxWidth: .infinity)
             }
-            .buttonStyle(IslandCapsuleButtonStyle(tint: Color(red: 0.2, green: 0.78, blue: 0.4)))
+            .padding(.top, 8)
+            .frame(height: 136, alignment: .top)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var spotifyURL: URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.spotify.client")
+    }
+
+    private var isSpotifyInstalled: Bool {
+        spotifyURL != nil
+    }
+
+    private var spotifyIcon: NSImage? {
+        spotifyURL.map { NSWorkspace.shared.icon(forFile: $0.path) }
     }
 }
 
@@ -1809,7 +1847,7 @@ private struct MediaControlRow: View {
     }
 
     private var playPauseCommand: MediaCommand {
-        if model.usesSpotifyFallback && !snapshot.isPlaying { return .play }
+        if model.homeMediaUsesSpotifyFallback && !snapshot.isPlaying { return .play }
         if snapshot.capabilities.contains(.togglePlayPause) { return .togglePlayPause }
         return snapshot.isPlaying ? .pause : .play
     }

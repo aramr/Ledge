@@ -22,11 +22,23 @@ final class IslandModel {
     var isEnabled = true
     var isPreviewing = false
     var preventsAutomaticCollapse = false
-    var isExpanded = false
+    var isExpanded = false {
+        didSet {
+            if oldValue != isExpanded { onWaveformVisibilityChange?() }
+        }
+    }
     var usesPhysicalNotch = true
     var renderedNotchSize = CGSize(width: 184, height: 32)
-    var selectedTab: IslandTab = .home
-    var isCalendarDetailPresented = false
+    var selectedTab: IslandTab = .home {
+        didSet {
+            if oldValue != selectedTab { onWaveformVisibilityChange?() }
+        }
+    }
+    var isCalendarDetailPresented = false {
+        didSet {
+            if oldValue != isCalendarDetailPresented { onWaveformVisibilityChange?() }
+        }
+    }
     var calendarAccessState: CalendarAccessState = .unknown
     var selectedCalendarDate = Calendar.current.startOfDay(for: .now)
     var displayedCalendarMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
@@ -55,6 +67,8 @@ final class IslandModel {
     var isOnboardingGreetingPresented = false
 
     @ObservationIgnored var onCommand: ((MediaCommand) -> Void)?
+    @ObservationIgnored var onSpotifyCommand: ((MediaCommand) -> Void)?
+    @ObservationIgnored var onWaveformVisibilityChange: (() -> Void)?
     @ObservationIgnored var onCalendarAccessRequest: (() -> Void)?
     @ObservationIgnored var onCalendarSelectionChange: ((Date, Date) -> Void)?
     @ObservationIgnored var onClipboardCopy: (([ClipboardEntry]) -> Void)?
@@ -99,11 +113,13 @@ final class IslandModel {
         settings.enabledAgentProviders
     }
 
+    var hasPrimaryMediaSnapshot: Bool {
+        snapshot.identifier != MediaSessionSnapshot.empty.identifier
+            && !snapshot.title.isEmpty
+    }
+
     var hasMediaSession: Bool {
-        guard snapshot.identifier != MediaSessionSnapshot.empty.identifier,
-              !snapshot.title.isEmpty else {
-            return false
-        }
+        guard hasPrimaryMediaSnapshot else { return false }
         if !isPreviewing,
            let source = snapshot.sourceBundleIdentifier,
            source == frontmostBundleIdentifier {
@@ -153,12 +169,34 @@ final class IslandModel {
         return !hasMediaSession || !snapshot.isPlaying
     }
 
-    var homeMediaSnapshot: MediaSessionSnapshot {
+    var compactMediaSnapshot: MediaSessionSnapshot {
         usesSpotifyFallback ? spotifyFallbackSnapshot : snapshot
     }
 
+    var homeMediaUsesSpotifyFallback: Bool {
+        // When compact media exists, Home follows the same priority decision.
+        if hasActiveMedia {
+            return usesSpotifyFallback
+        }
+
+        // Expanded Home may show the sole foreground player even though that
+        // player is intentionally suppressed from the compact island.
+        if hasPrimaryMediaSnapshot,
+           snapshot.isPlaying || Self.isSpotify(snapshot) {
+            return false
+        }
+
+        // With no active player, prefer Spotify's last-known track over a
+        // paused browser or other stale system Now Playing session.
+        return hasSpotifyFallback
+    }
+
+    var homeMediaSnapshot: MediaSessionSnapshot {
+        homeMediaUsesSpotifyFallback ? spotifyFallbackSnapshot : snapshot
+    }
+
     var hasHomeMedia: Bool {
-        hasMediaSession || usesSpotifyFallback
+        hasPrimaryMediaSnapshot || hasSpotifyFallback
     }
 
     var isTimerActive: Bool {
@@ -181,8 +219,17 @@ final class IslandModel {
             && hasActiveMedia
     }
 
+    var shouldCaptureLiveWaveform: Bool {
+        guard homeMediaSnapshot.isPlaying else { return false }
+        if isShowingCompactMedia { return true }
+        return phase == .expanded
+            && selectedTab == .home
+            && !isCalendarDetailPresented
+            && hasHomeMedia
+    }
+
     var showsSpotifyCompactProgress: Bool {
-        let selectedSnapshot = homeMediaSnapshot
+        let selectedSnapshot = compactMediaSnapshot
         guard isShowingCompactMedia,
               let duration = selectedSnapshot.duration,
               duration > 0 else {
@@ -312,6 +359,10 @@ final class IslandModel {
 
     func send(_ command: MediaCommand) {
         onCommand?(command)
+    }
+
+    func sendToSpotify(_ command: MediaCommand) {
+        onSpotifyCommand?(command)
     }
 
     func selectTab(_ tab: IslandTab) {

@@ -20,6 +20,36 @@ final class IslandModelTests: XCTestCase {
 
         XCTAssertEqual(model.phase, .idle)
         XCTAssertFalse(model.hasActiveMedia)
+        XCTAssertTrue(model.hasHomeMedia)
+        XCTAssertEqual(model.homeMediaSnapshot.sourceBundleIdentifier, "com.apple.Music")
+        XCTAssertFalse(model.shouldCaptureLiveWaveform)
+
+        model.isExpanded = true
+
+        XCTAssertTrue(model.shouldCaptureLiveWaveform)
+    }
+
+    func testForegroundMediaCaptureFollowsExpandedHomeVisibility() {
+        let model = IslandModel()
+        model.snapshot = playingSnapshot(source: "com.spotify.client")
+        model.frontmostBundleIdentifier = "com.spotify.client"
+        var visibilityChangeCount = 0
+        model.onWaveformVisibilityChange = { visibilityChangeCount += 1 }
+
+        model.isExpanded = true
+
+        XCTAssertTrue(model.shouldCaptureLiveWaveform)
+        XCTAssertEqual(visibilityChangeCount, 1)
+
+        model.selectTab(.clipboard)
+
+        XCTAssertFalse(model.shouldCaptureLiveWaveform)
+        XCTAssertEqual(visibilityChangeCount, 2)
+
+        model.selectTab(.home)
+
+        XCTAssertTrue(model.shouldCaptureLiveWaveform)
+        XCTAssertEqual(visibilityChangeCount, 3)
     }
 
     func testPreviewIgnoresForegroundAppFilter() {
@@ -825,6 +855,69 @@ final class IslandModelTests: XCTestCase {
         XCTAssertFalse(model.usesSpotifyFallback)
         XCTAssertFalse(model.hasActiveMedia)
         XCTAssertEqual(model.phase, .idle)
+        XCTAssertTrue(model.hasHomeMedia)
+        XCTAssertTrue(model.homeMediaUsesSpotifyFallback)
+        XCTAssertEqual(model.homeMediaSnapshot.sourceBundleIdentifier, "com.spotify.client")
+    }
+
+    func testForegroundPrimarySpotifyRemainsAvailableInExpandedHome() {
+        let model = IslandModel()
+        model.snapshot = playingSnapshot(source: "com.spotify.client")
+        model.snapshot.sourceName = "Spotify"
+        model.spotifyFallbackSnapshot = model.snapshot
+        model.frontmostBundleIdentifier = "com.spotify.client"
+
+        XCTAssertEqual(model.phase, .idle)
+        XCTAssertTrue(model.hasHomeMedia)
+        XCTAssertFalse(model.homeMediaUsesSpotifyFallback)
+        XCTAssertEqual(model.homeMediaSnapshot.identifier, model.snapshot.identifier)
+    }
+
+    func testPausedSpotifyFallbackReplacesPausedBrowserInHome() {
+        let model = IslandModel()
+        model.snapshot = playingSnapshot(source: "com.apple.Safari")
+        model.snapshot.playbackRate = 0
+        model.spotifyFallbackSnapshot = playingSnapshot(source: "com.spotify.client")
+        model.spotifyFallbackSnapshot.title = "Last Spotify track"
+        model.spotifyFallbackSnapshot.playbackRate = 0
+
+        XCTAssertEqual(model.phase, .idle)
+        XCTAssertTrue(model.homeMediaUsesSpotifyFallback)
+        XCTAssertEqual(model.homeMediaSnapshot.title, "Last Spotify track")
+    }
+
+    func testSpotifyReadyControlsUseDedicatedCommandRoute() {
+        let model = IslandModel()
+        var receivedCommand: MediaCommand?
+        model.onSpotifyCommand = { receivedCommand = $0 }
+
+        model.sendToSpotify(.play)
+
+        XCTAssertEqual(receivedCommand, .play)
+    }
+
+    func testSpotifyFallbackRestoresPersistedLastTrack() throws {
+        let suiteName = "SpotifyFallbackServiceTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let data = try JSONSerialization.data(withJSONObject: [
+            "identifier": "spotify:track:123",
+            "title": "Persisted song",
+            "artist": "Persisted artist",
+            "album": "Persisted album",
+            "duration": 180.0,
+            "elapsedTime": 42.0,
+            "artworkURL": "https://example.com/art.jpg"
+        ])
+        defaults.set(data, forKey: SpotifyFallbackService.persistedTrackDefaultsKey)
+        let service = SpotifyFallbackService(defaults: defaults)
+
+        service.restorePersistedSnapshot()
+
+        XCTAssertEqual(service.snapshot.title, "Persisted song")
+        XCTAssertEqual(service.snapshot.artist, "Persisted artist")
+        XCTAssertEqual(service.snapshot.elapsedTime, 42)
+        XCTAssertFalse(service.snapshot.isPlaying)
     }
 
     func testTimerDurationIsClampedToSupportedRange() {

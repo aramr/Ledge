@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 final class SpotifyFallbackService {
+    static let persistedTrackDefaultsKey = "spotifyFallbackTrack.v2"
+
     private struct PendingPlaybackIntent {
         let isPlaying: Bool
         let expiresAt: Date
@@ -20,6 +22,7 @@ final class SpotifyFallbackService {
 
     private let client = NowPlayingScriptClient()
     private let legacyDefaultsKey = "spotifyFallbackTrack.v1"
+    private let defaults: UserDefaults
     private var pollingTask: Task<Void, Never>?
     private var artworkTask: Task<Void, Never>?
     private var pendingArtworkIdentifier: String?
@@ -31,11 +34,20 @@ final class SpotifyFallbackService {
     private(set) var snapshot: MediaSessionSnapshot = .empty
     var onSnapshotChange: ((MediaSessionSnapshot) -> Void)?
 
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
     func start() {
         guard pollingTask == nil else { return }
-        // Older prototypes persisted listening history. Remove it during the
-        // upgrade and keep current track metadata in memory only.
-        UserDefaults.standard.removeObject(forKey: legacyDefaultsKey)
+        defaults.removeObject(forKey: legacyDefaultsKey)
+        restorePersistedSnapshot()
+        if let cachedTrack {
+            loadArtworkIfNeeded(
+                urlString: cachedTrack.artworkURL,
+                identifier: cachedTrack.identifier
+            )
+        }
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
@@ -45,6 +57,7 @@ final class SpotifyFallbackService {
     }
 
     func stop() {
+        persistCachedTrack()
         pollingTask?.cancel()
         pollingTask = nil
         artworkTask?.cancel()
@@ -74,7 +87,7 @@ final class SpotifyFallbackService {
 
         Task {
             if !isRunning {
-                try? await Task.sleep(for: .milliseconds(1_100))
+                await waitForSpotifyLaunch()
             }
             await client.send(command, sourceBundleIdentifier: "com.spotify.client")
             try? await Task.sleep(for: .milliseconds(350))
@@ -91,6 +104,13 @@ final class SpotifyFallbackService {
             return
         }
 
+        let artworkURL = response.artworkURL.flatMap { value -> String? in
+            guard let url = URL(string: value),
+                  SystemMediaSessionProvider.isAllowedRemoteArtworkURL(url) else {
+                return nil
+            }
+            return value
+        }
         let track = CachedTrack(
             identifier: response.contentIdentifier ?? "spotify:\(title):\(response.artist ?? "")",
             title: title,
@@ -98,14 +118,19 @@ final class SpotifyFallbackService {
             album: response.album ?? "",
             duration: response.duration,
             elapsedTime: response.elapsed ?? 0,
-            artworkURL: response.artworkURL
+            artworkURL: artworkURL
         )
+        let shouldPersist = cachedTrack?.identifier != track.identifier
+            || cachedTrack?.artworkURL != track.artworkURL
         if cachedTrack?.identifier != track.identifier {
             artworkTask?.cancel()
             artworkTask = nil
             pendingArtworkIdentifier = nil
         }
         cachedTrack = track
+        if shouldPersist {
+            persistCachedTrack()
+        }
 
         let exactArtwork = artworkCache[track.identifier]
         let artwork = MediaArtworkTransition.resolvedArtwork(
@@ -134,6 +159,38 @@ final class SpotifyFallbackService {
         )
         reconcilePendingPlaybackIntent(in: &next)
         publish(next)
+    }
+
+    func restorePersistedSnapshot() {
+        guard cachedTrack == nil,
+              let data = defaults.data(forKey: Self.persistedTrackDefaultsKey),
+              let restored = try? JSONDecoder().decode(CachedTrack.self, from: data),
+              !restored.title.isEmpty else {
+            return
+        }
+        cachedTrack = restored
+        publishCachedSnapshot()
+    }
+
+    private func persistCachedTrack() {
+        guard let cachedTrack,
+              let data = try? JSONEncoder().encode(cachedTrack) else { return }
+        defaults.set(data, forKey: Self.persistedTrackDefaultsKey)
+    }
+
+    private func waitForSpotifyLaunch() async {
+        for _ in 0..<40 {
+            let isRunning = !NSRunningApplication.runningApplications(
+                withBundleIdentifier: "com.spotify.client"
+            ).isEmpty
+            if isRunning {
+                // Give Spotify a moment after process registration to finish
+                // installing its Apple Events playback handlers.
+                try? await Task.sleep(for: .milliseconds(300))
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
     }
 
     private func applyOptimisticState(for command: MediaCommand) {
