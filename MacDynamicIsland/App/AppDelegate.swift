@@ -129,11 +129,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         model.onCommand = { [weak self] command in
             guard let self else { return }
-            if model.usesSpotifyFallback {
+            if model.homeMediaUsesSpotifyFallback {
                 spotifyFallbackService.send(command)
             } else {
                 activeProvider?.send(command)
             }
+        }
+
+        model.onSpotifyCommand = { [weak self] command in
+            self?.spotifyFallbackService.send(command)
+        }
+
+        model.onWaveformVisibilityChange = { [weak self] in
+            self?.refreshWaveformCapture()
         }
 
         waveformProvider.onLevelsChange = { [weak model] levels, isLive in
@@ -451,7 +459,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             shouldCapture: settings.usesLiveAudioWaveform
                 && model.isEnabled
                 && !model.isPreviewing
-                && model.hasActiveMedia
+                && model.shouldCaptureLiveWaveform
         )
     }
 
