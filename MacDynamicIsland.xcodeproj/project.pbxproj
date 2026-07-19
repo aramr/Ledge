@@ -1,0 +1,147 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* main.swift */; };
+		100000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* AppDelegate.swift */; };
+		100000000000000000000003 /* MediaSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* MediaSession.swift */; };
+		100000000000000000000004 /* IslandModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* IslandModel.swift */; };
+		100000000000000000000005 /* NowPlayingScriptClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* NowPlayingScriptClient.swift */; };
+		100000000000000000000006 /* SystemMediaSessionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* SystemMediaSessionProvider.swift */; };
+		100000000000000000000007 /* PreviewMediaSessionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* PreviewMediaSessionProvider.swift */; };
+		100000000000000000000008 /* FocusMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000008 /* FocusMonitor.swift */; };
+		100000000000000000000009 /* IslandViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000009 /* IslandViews.swift */; };
+		10000000000000000000000A /* IslandPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000A /* IslandPanelController.swift */; };
+		10000000000000000000000B /* MediaSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000B /* MediaSessionTests.swift */; };
+		10000000000000000000000C /* IslandModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* IslandModelTests.swift */; };
+		10000000000000000000000D /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000F /* XCTest.framework */; };
+		10000000000000000000000E /* SystemAudioWaveformProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000011 /* SystemAudioWaveformProvider.swift */; };
+		10000000000000000000000F /* IslandContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000012 /* IslandContent.swift */; };
+		100000000000000000000010 /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* CalendarService.swift */; };
+		100000000000000000000011 /* ClipboardHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* ClipboardHistoryService.swift */; };
+		100000000000000000000012 /* SpotifyFallbackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000015 /* SpotifyFallbackService.swift */; };
+		100000000000000000000013 /* CodexUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* CodexUsageService.swift */; };
+		100000000000000000000014 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000017 /* AppSettings.swift */; };
+		100000000000000000000015 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* SettingsWindowController.swift */; };
+		100000000000000000000016 /* ClaudeUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000019 /* ClaudeUsageService.swift */; };
+		100000000000000000000017 /* AgentProviderIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001A /* AgentProviderIcon.swift */; };
+		100000000000000000000018 /* ClaudeCodeStatusLineBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001B /* ClaudeCodeStatusLineBridge.swift */; };
+		100000000000000000000019 /* BluetoothConnectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001C /* BluetoothConnectionService.swift */; };
+		10000000000000000000001A /* IOBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001D /* IOBluetooth.framework */; };
+		10000000000000000000001B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001E /* Assets.xcassets */; };
+		10000000000000000000001C /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001F /* OnboardingWindowController.swift */; };
+		10000000000000000000001D /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000020 /* THIRD_PARTY_NOTICES.md */; };
+		10000000000000000000001E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000021 /* PrivacyInfo.xcprivacy */; };
+		10000000000000000000001F /* PRIVACY.md in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PRIVACY.md */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		300000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 700000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 600000000000000000000001;
+			remoteInfo = Ledge;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		200000000000000000000001 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		200000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		200000000000000000000003 /* MediaSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSession.swift; sourceTree = "<group>"; };
+		200000000000000000000004 /* IslandModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandModel.swift; sourceTree = "<group>"; };
+		200000000000000000000005 /* NowPlayingScriptClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingScriptClient.swift; sourceTree = "<group>"; };
+		200000000000000000000006 /* SystemMediaSessionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemMediaSessionProvider.swift; sourceTree = "<group>"; };
+		200000000000000000000007 /* PreviewMediaSessionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewMediaSessionProvider.swift; sourceTree = "<group>"; };
+		200000000000000000000008 /* FocusMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusMonitor.swift; sourceTree = "<group>"; };
+		200000000000000000000009 /* IslandViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandViews.swift; sourceTree = "<group>"; };
+		20000000000000000000000A /* IslandPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandPanelController.swift; sourceTree = "<group>"; };
+		20000000000000000000000B /* MediaSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSessionTests.swift; sourceTree = "<group>"; };
+		20000000000000000000000C /* IslandModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandModelTests.swift; sourceTree = "<group>"; };
+		20000000000000000000000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		20000000000000000000000E /* Ledge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ledge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		20000000000000000000000F /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
+		200000000000000000000010 /* LedgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LedgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000011 /* SystemAudioWaveformProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioWaveformProvider.swift; sourceTree = "<group>"; };
+		200000000000000000000012 /* IslandContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandContent.swift; sourceTree = "<group>"; };
+		200000000000000000000013 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
+		200000000000000000000014 /* ClipboardHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryService.swift; sourceTree = "<group>"; };
+		200000000000000000000015 /* SpotifyFallbackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyFallbackService.swift; sourceTree = "<group>"; };
+		200000000000000000000016 /* CodexUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexUsageService.swift; sourceTree = "<group>"; };
+		200000000000000000000017 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		200000000000000000000018 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
+		200000000000000000000019 /* ClaudeUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageService.swift; sourceTree = "<group>"; };
+		20000000000000000000001A /* AgentProviderIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProviderIcon.swift; sourceTree = "<group>"; };
+		20000000000000000000001B /* ClaudeCodeStatusLineBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeStatusLineBridge.swift; sourceTree = "<group>"; };
+		20000000000000000000001C /* BluetoothConnectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothConnectionService.swift; sourceTree = "<group>"; };
+		20000000000000000000001D /* IOBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOBluetooth.framework; path = System/Library/Frameworks/IOBluetooth.framework; sourceTree = SDKROOT; };
+		20000000000000000000001E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		20000000000000000000001F /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
+		200000000000000000000020 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
+		200000000000000000000021 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		200000000000000000000022 /* PRIVACY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRIVACY.md; sourceTree = "<group>"; };
+		200000000000000000000023 /* Ledge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ledge.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		400000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000001A /* IOBluetooth.framework in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		400000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000000D /* XCTest.framework in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		500000000000000000000001 = {isa = PBXGroup; children = (500000000000000000000002 /* Ledge */, 500000000000000000000007 /* LedgeTests */, 500000000000000000000008 /* Frameworks */, 500000000000000000000009 /* Products */, 200000000000000000000020 /* THIRD_PARTY_NOTICES.md */, 200000000000000000000022 /* PRIVACY.md */,); sourceTree = "<group>"; };
+		500000000000000000000002 /* Ledge */ = {isa = PBXGroup; children = (500000000000000000000003 /* App */, 500000000000000000000004 /* Core */, 500000000000000000000005 /* Services */, 500000000000000000000006 /* UI */, 20000000000000000000001E /* Assets.xcassets */, 20000000000000000000000D /* Info.plist */, 200000000000000000000021 /* PrivacyInfo.xcprivacy */, 200000000000000000000023 /* Ledge.entitlements */,); name = Ledge; path = MacDynamicIsland; sourceTree = "<group>"; };
+		500000000000000000000003 /* App */ = {isa = PBXGroup; children = (200000000000000000000001 /* main.swift */, 200000000000000000000002 /* AppDelegate.swift */,); path = App; sourceTree = "<group>"; };
+		500000000000000000000004 /* Core */ = {isa = PBXGroup; children = (200000000000000000000003 /* MediaSession.swift */, 200000000000000000000004 /* IslandModel.swift */, 200000000000000000000012 /* IslandContent.swift */, 200000000000000000000017 /* AppSettings.swift */,); path = Core; sourceTree = "<group>"; };
+		500000000000000000000005 /* Services */ = {isa = PBXGroup; children = (200000000000000000000005 /* NowPlayingScriptClient.swift */, 200000000000000000000006 /* SystemMediaSessionProvider.swift */, 200000000000000000000011 /* SystemAudioWaveformProvider.swift */, 200000000000000000000013 /* CalendarService.swift */, 200000000000000000000014 /* ClipboardHistoryService.swift */, 20000000000000000000001C /* BluetoothConnectionService.swift */, 200000000000000000000015 /* SpotifyFallbackService.swift */, 200000000000000000000016 /* CodexUsageService.swift */, 200000000000000000000019 /* ClaudeUsageService.swift */, 20000000000000000000001B /* ClaudeCodeStatusLineBridge.swift */, 200000000000000000000007 /* PreviewMediaSessionProvider.swift */, 200000000000000000000008 /* FocusMonitor.swift */,); path = Services; sourceTree = "<group>"; };
+		500000000000000000000006 /* UI */ = {isa = PBXGroup; children = (200000000000000000000009 /* IslandViews.swift */, 20000000000000000000001A /* AgentProviderIcon.swift */, 20000000000000000000000A /* IslandPanelController.swift */, 200000000000000000000018 /* SettingsWindowController.swift */, 20000000000000000000001F /* OnboardingWindowController.swift */,); path = UI; sourceTree = "<group>"; };
+		500000000000000000000007 /* LedgeTests */ = {isa = PBXGroup; children = (20000000000000000000000B /* MediaSessionTests.swift */, 20000000000000000000000C /* IslandModelTests.swift */,); name = LedgeTests; path = MacDynamicIslandTests; sourceTree = "<group>"; };
+		500000000000000000000008 /* Frameworks */ = {isa = PBXGroup; children = (20000000000000000000000F /* XCTest.framework */, 20000000000000000000001D /* IOBluetooth.framework */,); name = Frameworks; sourceTree = "<group>"; };
+		500000000000000000000009 /* Products */ = {isa = PBXGroup; children = (20000000000000000000000E /* Ledge.app */, 200000000000000000000010 /* LedgeTests.xctest */,); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		600000000000000000000001 /* Ledge */ = {isa = PBXNativeTarget; buildConfigurationList = 800000000000000000000002; buildPhases = (900000000000000000000001 /* Sources */, 400000000000000000000001 /* Frameworks */, 900000000000000000000003 /* Resources */,); buildRules = (); dependencies = (); name = Ledge; productName = Ledge; productReference = 20000000000000000000000E /* Ledge.app */; productType = "com.apple.product-type.application"; };
+		600000000000000000000002 /* LedgeTests */ = {isa = PBXNativeTarget; buildConfigurationList = 800000000000000000000003; buildPhases = (900000000000000000000002 /* Sources */, 400000000000000000000002 /* Frameworks */, 900000000000000000000004 /* Resources */,); buildRules = (); dependencies = (A00000000000000000000001 /* PBXTargetDependency */,); name = LedgeTests; productName = LedgeTests; productReference = 200000000000000000000010 /* LedgeTests.xctest */; productType = "com.apple.product-type.bundle.unit-test"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		700000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2600; LastUpgradeCheck = 2600; TargetAttributes = {600000000000000000000001 = {CreatedOnToolsVersion = 26.0;}; 600000000000000000000002 = {CreatedOnToolsVersion = 26.0; TestTargetID = 600000000000000000000001;};};}; buildConfigurationList = 800000000000000000000001; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = 500000000000000000000001; productRefGroup = 500000000000000000000009 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (600000000000000000000001 /* Ledge */, 600000000000000000000002 /* LedgeTests */,); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		900000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000001B /* Assets.xcassets in Resources */,10000000000000000000001D /* THIRD_PARTY_NOTICES.md in Resources */,10000000000000000000001E /* PrivacyInfo.xcprivacy in Resources */,10000000000000000000001F /* PRIVACY.md in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		900000000000000000000004 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		900000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001,100000000000000000000002,100000000000000000000003,100000000000000000000004,10000000000000000000000F,100000000000000000000014,100000000000000000000005,100000000000000000000006,10000000000000000000000E,100000000000000000000010,100000000000000000000011,100000000000000000000019,100000000000000000000012,100000000000000000000013,100000000000000000000016,100000000000000000000018,100000000000000000000007,100000000000000000000008,100000000000000000000009,100000000000000000000017,10000000000000000000000A,100000000000000000000015,10000000000000000000001C,); runOnlyForDeploymentPostprocessing = 0; };
+		900000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000000B,10000000000000000000000C,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A00000000000000000000001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 600000000000000000000001 /* Ledge */; targetProxy = 300000000000000000000001 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		B00000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; GCC_C_LANGUAGE_STANDARD = gnu17; GCC_OPTIMIZATION_LEVEL = 0; MACOSX_DEPLOYMENT_TARGET = 15.0; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_VERSION = 6.0; }; name = Debug; };
+		B00000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = YES; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; GCC_C_LANGUAGE_STANDARD = gnu17; MACOSX_DEPLOYMENT_TARGET = 15.0; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 6.0; }; name = Release; };
+		B00000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_ENTITLEMENTS = MacDynamicIsland/Ledge.entitlements; CODE_SIGN_STYLE = Automatic; COMBINE_HIDPI_IMAGES = YES; ENABLE_HARDENED_RUNTIME = YES; ENABLE_USER_SCRIPT_SANDBOXING = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = MacDynamicIsland/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.aramrahimi.MacDynamicIsland; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; }; name = Debug; };
+		B00000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_ENTITLEMENTS = MacDynamicIsland/Ledge.entitlements; CODE_SIGN_STYLE = Automatic; COMBINE_HIDPI_IMAGES = YES; DEAD_CODE_STRIPPING = YES; ENABLE_CODE_COVERAGE = NO; ENABLE_HARDENED_RUNTIME = YES; ENABLE_USER_SCRIPT_SANDBOXING = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = MacDynamicIsland/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.aramrahimi.MacDynamicIsland; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; VALIDATE_PRODUCT = YES; }; name = Release; };
+		B00000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.aramrahimi.LedgeTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = NO; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ledge.app/Contents/MacOS/Ledge"; }; name = Debug; };
+		B00000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks"; PRODUCT_BUNDLE_IDENTIFIER = com.aramrahimi.LedgeTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = NO; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ledge.app/Contents/MacOS/Ledge"; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		800000000000000000000001 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000001 /* Debug */, B00000000000000000000002 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		800000000000000000000002 /* Build configuration list for PBXNativeTarget "Ledge" */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000003 /* Debug */, B00000000000000000000004 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		800000000000000000000003 /* Build configuration list for PBXNativeTarget "LedgeTests" */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000005 /* Debug */, B00000000000000000000006 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = 700000000000000000000001 /* Project object */;
+}
