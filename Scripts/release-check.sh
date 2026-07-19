@@ -58,7 +58,7 @@ APP="$DERIVED_DATA/Build/Products/Release/Ledge.app"
 test -d "$APP"
 test -f "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 test -f "$APP/Contents/Resources/PRIVACY.md"
-test -f "$APP/Contents/Resources/THIRD_PARTY_NOTICES.md"
+test -f "$APP/Contents/Resources/ACKNOWLEDGEMENTS.md"
 
 plutil -lint "$APP/Contents/Info.plist" "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
 

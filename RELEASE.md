@@ -6,7 +6,7 @@ Ledge is currently prepared for **direct Developer ID distribution**, not the Ma
 
 1. Update `CFBundleShortVersionString` and `CFBundleVersion` in `MacDynamicIsland/Info.plist`.
 2. Confirm the release is built from a clean, reviewed, committed revision. The release gate intentionally rejects an empty or dirty Git worktree.
-3. Review `PRIVACY.md`, the permission purpose strings, and `THIRD_PARTY_NOTICES.md` against the exact features in the release.
+3. Review `PRIVACY.md`, the permission purpose strings, and `ACKNOWLEDGEMENTS.md` against the exact features in the release.
 4. Run `Scripts/security-check.sh`, then run `Scripts/release-check.sh` on the oldest supported macOS version and on the current macOS version.
 5. Manually test onboarding, every permission state, Spotify and browser media, audio capture denial, Calendar denial, Clipboard/Quick Look/dragging, Bluetooth reconnects, Codex, Claude Desktop, and Claude Code connect/disconnect/restore.
 6. Confirm the public download page contains a support contact, privacy contact, system requirements, version, checksum, and a link to the privacy notice.

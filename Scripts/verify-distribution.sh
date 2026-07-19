@@ -20,7 +20,7 @@ for resource in \
   Info.plist \
   Resources/PrivacyInfo.xcprivacy \
   Resources/PRIVACY.md \
-  Resources/THIRD_PARTY_NOTICES.md; do
+  Resources/ACKNOWLEDGEMENTS.md; do
   [[ -f "$APP/Contents/$resource" ]] || fail "missing $resource."
 done
 

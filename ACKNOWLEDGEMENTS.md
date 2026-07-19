@@ -1,4 +1,4 @@
-# Third-Party Notices
+# Acknowledgements
 
 ## AppleHello
 

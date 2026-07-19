@@ -1,122 +1,159 @@
-# Ledge
+<p align="center">
+  <img src="MacDynamicIsland/Assets.xcassets/AppIcon.appiconset/Ledge-256.png" width="128" height="128" alt="Ledge app icon">
+</p>
 
-A native macOS menu-bar utility that turns the space around the MacBook camera notch into a focused home for media, calendar, clipboard, timers, agent usage, and timely device updates.
+<h1 align="center">Ledge</h1>
 
-## Current implementation
+<p align="center">
+  A native Dynamic Island for the MacBook notch.
+</p>
 
-- Menu-bar-only app (`LSUIElement`), with no Dock icon.
-- Versioned first-run onboarding with a notch greeting, a separate native welcome window, and looping motion previews for core features.
-- Transparent idle hit surface that leaves the physical MacBook notch visually untouched.
-- Device-black active surfaces with a four-point hardware overlap and notch-specific shoulder curves to prevent visible seams.
-- Larger compact playback surface with track artwork and an optional live five-band waveform driven by the active media app's outgoing audio.
-- Coordinated spring-like hover or click expansion inside a fixed transparent canvas, preventing window-size jumps.
-- Adaptive expanded surfaces with Home, Clipboard, and Timer tabs, plus a dedicated full-calendar route.
-- Home dashboard with media controls, a horizontally scrollable Apple Calendar strip, and events for the selected day.
-- EventKit calendar integration with explicit full-access permission handling and live refresh when Calendar changes.
-- Spotify fallback metadata persisted from the last observed track; fallback controls relaunch Spotify before playback commands are sent.
-- Finder-style clipboard tab with recent screenshots and copied text in separate horizontal strips, multi-selection, Command-C, native Quick Look, numbered text shortcuts, and drag export.
-- Ruler-style 1–120 minute timer with a live countdown and completion sound.
-- Single-surface animation inside a fixed transparent panel, preventing intermediate window-size jumps during hover.
-- Hover expansion from idle into a minimal no-media state.
-- Track title, artist, album, source-app icon, elapsed time, duration, and cached remote artwork.
-- Capability-aware play/pause, previous, and next commands.
-- Spotify desktop integration using its native scripting interface for authoritative playback state, controls, and album artwork when system metadata is incomplete.
-- YouTube support through Safari and Chromium browsers that publish to the macOS Now Playing session, including inline, remote-URL, and YouTube-thumbnail artwork fallbacks.
-- Automatic return to the idle notch when the source application becomes frontmost.
-- Notch-aware geometry with a synthetic centered pill fallback for external displays.
-- All-Spaces and full-screen auxiliary panel behavior.
-- Built-in preview provider, available from the menu-bar menu.
+<p align="center">
+  Media controls, Calendar, Clipboard, timers, coding-agent usage, and device updates<br>
+  in one polished surface that stays out of the way until you need it.
+</p>
 
-## Requirements
+## What is Ledge?
+
+Ledge is a native macOS menu-bar app that turns the area around the camera notch into a compact, interactive workspace. It remains visually quiet while idle, surfaces useful information when something is active, and expands into a dashboard when you hover or click.
+
+The interface is built with SwiftUI and AppKit and is designed to feel at home on macOS: smooth notch-aware transitions, native controls, support for every Space, and a synthetic centered island when used on a display without a physical notch.
+
+## Preview
+
+### Media and Calendar
+
+Control active media, view artwork and live playback progress, and check upcoming Calendar events without leaving the current app.
+
+<p align="center">
+  <img src="Documentation/Images/media-and-calendar.png" width="900" alt="Ledge media controls and Calendar preview">
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><strong>Timer</strong></td>
+    <td width="50%" align="center"><strong>Agent usage</strong></td>
+  </tr>
+  <tr>
+    <td><img src="Documentation/Images/timer.png" alt="Ledge timer ruler and countdown"></td>
+    <td><img src="Documentation/Images/agent-usage.png" alt="Ledge Codex seven-day usage view"></td>
+  </tr>
+  <tr>
+    <td align="center">Set a 1–120 minute timer with a tactile ruler-style control and compact live countdown.</td>
+    <td align="center">See local Codex and Claude seven-day usage, reset timing, and connection status at a glance.</td>
+  </tr>
+</table>
+
+## Highlights
+
+- **Media:** artwork, track details, progress, previous/play/next controls, and an optional live five-band waveform for Music, Spotify, Safari, and Chromium-based browsers.
+- **Calendar:** a scrollable date strip and upcoming Apple Calendar events, with a dedicated full-calendar route.
+- **Clipboard:** recent copied text and screenshots, multi-selection, keyboard shortcuts, Quick Look, and drag export. History stays in memory and is discarded when Ledge quits.
+- **Timer:** a ruler-style 1–120 minute picker, smooth compact countdown, pause/resume, and an alarm sound.
+- **Agentic:** local Codex and Claude usage limits, reset dates, connection state, and manual refresh.
+- **Bluetooth:** compact connection alerts for supported headphones and devices.
+- **Notch-aware design:** uses the physical MacBook notch when available and falls back to a centered island on external displays.
+- **Native macOS behavior:** menu-bar-only, no Dock icon, all-Spaces support, full-screen compatibility, and permission-aware integrations.
+
+## Prerequisites
 
 - macOS 15 or later
-- Xcode 26 or later for development
+- Xcode 26 or later, including the Xcode command-line tools
+- A MacBook with a camera notch for the intended experience; Macs and displays without a notch use the centered fallback island
+- Git for cloning the repository
 
-## Build and run
+Spotify, Apple Music, Safari or a Chromium browser, Apple Calendar, Codex, and Claude are optional. Ledge only activates the integrations that are available on your Mac.
 
-Open `MacDynamicIsland.xcodeproj` in Xcode and run the `Ledge` scheme, or build from Terminal:
+## Install from source
+
+### 1. Clone the repository
 
 ```sh
-xcodebuild \
+git clone https://github.com/aramr/Ledge.git
+cd Ledge
+```
+
+You can use SSH instead if your GitHub account is configured for it:
+
+```sh
+git clone git@github.com:aramr/Ledge.git
+cd Ledge
+```
+
+### 2. Build Ledge
+
+From Terminal:
+
+```sh
+xcodebuild clean build \
   -project MacDynamicIsland.xcodeproj \
   -scheme Ledge \
-  -configuration Debug \
+  -configuration Release \
+  -destination 'generic/platform=macOS' \
   -derivedDataPath DerivedData \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-
-open DerivedData/Build/Products/Debug/Ledge.app
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-For a deterministic UI preview without active media, launch the executable with:
+Or open `MacDynamicIsland.xcodeproj` in Xcode, select the **Ledge** scheme and **My Mac**, then press **Run**.
+
+### 3. Install and launch
+
+To keep the locally built app in your user Applications folder:
 
 ```sh
-DerivedData/Build/Products/Debug/Ledge.app/Contents/MacOS/Ledge --preview
+mkdir -p "$HOME/Applications"
+ditto DerivedData/Build/Products/Release/Ledge.app "$HOME/Applications/Ledge.app"
+open "$HOME/Applications/Ledge.app"
 ```
 
-The welcome experience can be replayed from the menu bar, from Settings → About, or directly during development:
+Ledge appears in the macOS menu bar rather than the Dock. Use its menu-bar icon to open Settings, temporarily disable the app, or quit.
+
+> This source-build path is intended for development and personal testing. Public builds should be Developer ID signed and notarized as described in [RELEASE.md](RELEASE.md).
+
+## First launch and permissions
+
+After the welcome flow, macOS may ask for access as each related feature becomes active:
+
+| Permission | Used for |
+| --- | --- |
+| System Audio Recording | Computing the live media waveform in memory |
+| Automation | Reading and controlling compatible media apps such as Spotify |
+| Calendar | Showing events from Apple Calendar |
+| Bluetooth | Displaying supported device connection alerts |
+
+The live waveform and Bluetooth alerts start enabled and can be turned off independently in Settings. Denying an optional permission does not prevent the rest of Ledge from running.
+
+## Development
+
+Run the unit tests:
 
 ```sh
-DerivedData/Build/Products/Debug/Ledge.app/Contents/MacOS/Ledge --onboarding
-```
-
-Run the unit tests with:
-
-```sh
-xcodebuild \
+xcodebuild test \
   -project MacDynamicIsland.xcodeproj \
   -scheme Ledge \
-  -derivedDataPath DerivedData \
   -destination 'platform=macOS' \
-  CODE_SIGNING_ALLOWED=NO \
-  test
+  -derivedDataPath DerivedData \
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-## Media integration note
-
-Apple does not expose a public cross-application Now Playing reader. Direct calls to the private MediaRemote framework are also entitlement-gated on macOS 15.4 and later.
-
-The current prototype retrieves the local Now Playing object through the system JavaScript-for-Automation host and sends browser commands through `MRNowPlayingController`. Spotify is enriched and controlled through Spotify's built-in AppleScript interface because Spotify can omit playback-rate and artwork data from its system Now Playing dictionary. The first Spotify access may produce a macOS Automation permission prompt.
-
-The compact live waveform and Bluetooth connection alerts start enabled and can be turned off independently in Settings. After onboarding, macOS requests System Audio Recording permission when the first live media capture begins and may request Bluetooth access as connection monitoring starts. The waveform uses a Core Audio process tap, scoped privately to this app, to analyze five frequency bands from the active source app in memory. Audio is never written to disk or transmitted. If permission is unavailable, the island keeps using its decorative waveform. Browser capture is process-scoped, so simultaneous audible tabs from the same browser are represented together. Codex and Claude polling begins only after the Agentic interface is opened.
-
-Calendar data is read through EventKit only after the user grants Calendar access. Clipboard monitoring starts only after the user opens the Clipboard tab; history is kept in memory, limited to 30 entries, discarded on quit, and never transmitted. The clipboard tab also discovers recent files in the configured macOS screenshot location. Items can be selected, Command-clicked, copied again, previewed with Space, or dragged directly to another app; Command-0 through Command-9 copy the first ten text entries.
-
-Current media metadata and agent-usage snapshots are session-only. Ledge removes metadata caches created by older prototype builds. The optional Claude Code status-line bridge retains only quota metadata and the restore record needed to preserve an existing user configuration, using owner-only file permissions.
-
-Turning off **Enable Ledge** stops all runtime integrations and clears session-only media, Calendar, clipboard, Bluetooth, and agent data from the app.
-
-macOS does not provide a supported API that lets a third-party utility intercept or replace notifications delivered by Messages, FaceTime, or iPhone call relay. `UNUserNotificationCenter` exposes notifications owned by this app, not other apps. A call/message interruption UI can be added once there is an authorized event source, but shipping a Notification Center scraper would require Accessibility or private APIs and would be fragile and privacy-sensitive.
-
-Spotify metadata, playback state, supported commands, and a 640 × 640 album-art URL have been validated on macOS 26.3. YouTube uses the same system session exposed by Safari and Chromium browsers; browser/version compatibility still needs hands-on validation before distribution because MediaRemote is private implementation detail.
-
-All private media access is isolated behind `MediaSessionProviding`, so it can be replaced without changing the island state machine or UI.
-
-## Project structure
-
-- `App`: process lifecycle and menu-bar menu
-- `Core`: media model and island state machine
-- `Services`: system/preview media providers, foreground-app monitor, and live system-audio meter
-- `UI`: SwiftUI island views and the AppKit floating panel
-- `LedgeTests`: timeline and visibility-state tests
-
-## Distribution
-
-Run the complete local gate before preparing an archive:
+Run the complete local security and release gates:
 
 ```sh
 Scripts/security-check.sh
 Scripts/release-check.sh
 ```
 
-Ledge is intended for direct Developer ID distribution and notarization. The current media implementation uses a private macOS framework through the system automation host, so it is not suitable for Mac App Store submission. See `RELEASE.md` for the signing, notarization, clean-Mac acceptance, privacy, and support requirements. See `PRIVACY.md` for the user-facing data-handling notice.
+Project layout:
 
-After exporting and notarizing the public app, run `Scripts/verify-distribution.sh /path/to/Ledge.app` against the exact artifact users will receive.
+- `MacDynamicIsland/App` — lifecycle and menu-bar integration
+- `MacDynamicIsland/Core` — app settings, media model, and island state
+- `MacDynamicIsland/Services` — media, waveform, Calendar, Clipboard, Bluetooth, Codex, and Claude integrations
+- `MacDynamicIsland/UI` — SwiftUI views and AppKit panel/window controllers
+- `MacDynamicIslandTests` — model, media, privacy, and integration regression tests
+- `Scripts` — security, release, packaging, and distribution verification
 
-## Next milestones
+## Privacy and distribution
 
-1. Complete hands-on interaction and visual validation for every tab, Calendar permission state, and clipboard drag destination.
-2. Decide whether communication interruptions use a companion integration, user-provided automation, or an explicitly unsupported private/Accessibility adapter.
-3. Add timer persistence and local completion notifications.
-4. Add interactive media seek, launch-at-login, and display selection settings.
-5. Add visual regression tests and complete hands-on clean-Mac acceptance testing for each release.
+Ledge is local-first. It does not require a Ledge account or backend, does not transmit clipboard or Calendar contents, and never writes captured system audio to disk. Media metadata and agent-usage snapshots are session-only. See [PRIVACY.md](PRIVACY.md) for the complete data-handling notice.
+
+Ledge is intended for direct Developer ID distribution rather than the Mac App Store because cross-application Now Playing support relies on a private macOS framework through the system automation host. Review [RELEASE.md](RELEASE.md) before creating a public build, and verify the final signed artifact with `Scripts/verify-distribution.sh`.

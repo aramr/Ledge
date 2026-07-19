@@ -603,7 +603,7 @@ private struct OnboardingGreetingCompactView: View {
 }
 
 // The normalized Bézier path and trim animation approach are adapted from
-// mtynior/AppleHello (MIT). See THIRD_PARTY_NOTICES.md.
+// mtynior/AppleHello (MIT). See ACKNOWLEDGEMENTS.md.
 private struct AppleHelloShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
