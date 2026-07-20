@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let timerAlarmService = TimerAlarmService()
     private let codexUsageService = CodexUsageService()
     private let claudeUsageService = ClaudeUsageService()
+    private let launchAtLoginService = LaunchAtLoginService()
 
     private var activeProvider: (any MediaSessionProviding)?
     private var panelController: IslandPanelController?
@@ -347,18 +348,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showSettings() {
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController(model: model)
+            settingsWindowController = SettingsWindowController(
+                model: model,
+                launchAtLoginService: launchAtLoginService
+            )
         }
+        launchAtLoginService.refreshStatus()
         settingsWindowController?.present()
     }
 
     @objc private func showOnboarding() {
         model.isOnboardingGreetingPresented = true
+        launchAtLoginService.refreshStatus()
 
         if onboardingWindowController == nil {
             onboardingWindowController = OnboardingWindowController(
-                onFinish: { [weak self] in
-                    self?.finishOnboarding()
+                launchesAtLoginByDefault: settings.needsOnboarding
+                    || launchAtLoginService.isEnabled,
+                onFinish: { [weak self] launchesAtLogin in
+                    self?.finishOnboarding(launchesAtLogin: launchesAtLogin)
                 },
                 onDismiss: { [weak self] in
                     guard let self else { return }
@@ -529,8 +537,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.dismissBluetoothConnection()
     }
 
-    private func finishOnboarding() {
+    private func finishOnboarding(launchesAtLogin: Bool) {
         settings.completeOnboarding()
+        launchAtLoginService.setEnabled(launchesAtLogin)
         model.isOnboardingGreetingPresented = false
         onboardingWindowController?.close()
 

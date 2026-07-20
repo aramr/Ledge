@@ -1696,6 +1696,41 @@ private struct HomeTabView: View {
         .padding(.trailing, 26)
         .padding(.top, 4)
         .padding(.bottom, IslandGeometry.homeContentEdgeInset)
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                openCalendar()
+            } label: {
+                Image(systemName: "calendar")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle()
+                            .fill(.white.opacity(0.14))
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(.white.opacity(0.12), lineWidth: 0.75)
+                    )
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Open Calendar")
+            .accessibilityLabel("Open Calendar")
+            // Home's layout extends through the 14-point top shoulder on the
+            // right. Compensate for it so the visible right and bottom gaps
+            // around the button are both 12 points.
+            .padding(.trailing, IslandGeometry.expandedTopCornerRadius + 12)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private func openCalendar() {
+        if model.calendarAccessState == .authorized {
+            model.presentCalendarDetail()
+        } else {
+            model.requestCalendarAccess()
+        }
     }
 }
 
@@ -1870,14 +1905,17 @@ private struct MediaControlRow: View {
 
 private struct CalendarSummarySection: View {
     @Bindable var model: IslandModel
+    @State private var visibleCalendarDate: Date?
 
     var body: some View {
+        let headerDate = visibleCalendarDate ?? model.selectedCalendarDate
+
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 7) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(model.selectedCalendarDate.formatted(.dateTime.month(.abbreviated)))
+                    Text(headerDate.formatted(.dateTime.month(.abbreviated)))
                         .font(.system(size: 16, weight: .semibold))
-                    Text(model.selectedCalendarDate.formatted(.dateTime.year()))
+                    Text(headerDate.formatted(.dateTime.year()))
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white.opacity(0.62))
                 }
@@ -1885,8 +1923,11 @@ private struct CalendarSummarySection: View {
                 .contentShape(Rectangle())
                 .onTapGesture { openCalendar() }
 
-                CalendarDayStrip(model: model)
+                CalendarDayStrip(model: model) { date in
+                    visibleCalendarDate = date
+                }
             }
+            .frame(height: 54)
 
             Group {
                 switch model.calendarAccessState {
@@ -1919,8 +1960,11 @@ private struct CalendarSummarySection: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 74, maxHeight: 74)
+            .clipped()
         }
+        .frame(height: 136, alignment: .top)
+        .clipped()
     }
 
     private func openCalendar() {
@@ -1934,89 +1978,305 @@ private struct CalendarSummarySection: View {
 
 private struct CalendarDayStrip: View {
     @Bindable var model: IslandModel
+    let onVisibleDateChange: (Date) -> Void
+    @State private var timelineAnchor: Date
+    @State private var todayNavigationDirection: TodayNavigationDirection?
+
+    private let timelineRadius = 730
+
+    init(model: IslandModel, onVisibleDateChange: @escaping (Date) -> Void) {
+        self.model = model
+        self.onVisibleDateChange = onVisibleDateChange
+        let selectedDay = Calendar.current.startOfDay(for: model.selectedCalendarDate)
+        _timelineAnchor = State(initialValue: selectedDay)
+    }
 
     var body: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 7) {
-                ForEach(days, id: \.self) { day in
-                    let selected = Calendar.current.isDate(day, inSameDayAs: model.selectedCalendarDate)
-                    Button {
-                        model.selectCalendarDate(day)
-                    } label: {
-                        VStack(spacing: 4) {
-                            Text(day.formatted(.dateTime.weekday(.narrow)))
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(.white.opacity(selected ? 0.9 : 0.36))
-                            Text(day.formatted(.dateTime.day()))
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white.opacity(selected ? 1 : 0.64))
-                            Circle()
-                                .fill(model.events(on: day).isEmpty ? .clear : Color.blue)
-                                .frame(width: 3, height: 3)
+        ScrollViewReader { proxy in
+            VStack(spacing: 2) {
+                Button {
+                    selectToday(using: proxy)
+                } label: {
+                    HStack(spacing: 2) {
+                        if todayNavigationDirection == .backward {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 7, weight: .bold))
                         }
-                        .frame(width: 35, height: 54)
-                        .background(
-                            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(selected ? Color.blue.opacity(0.32) : .white.opacity(0.035))
-                        )
+                        Text("Today")
+                        if todayNavigationDirection == .forward {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 7, weight: .bold))
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.58))
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .frame(height: 12)
+                .opacity(todayNavigationDirection == nil ? 0 : 1)
+                .allowsHitTesting(todayNavigationDirection != nil)
+                .accessibilityLabel("Go to today")
+                .accessibilityHidden(todayNavigationDirection == nil)
+                .animation(.easeInOut(duration: 0.16), value: todayNavigationDirection)
+
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: CalendarDayStripLayout.spacing) {
+                        ForEach(days, id: \.self) { day in
+                            let calendar = Calendar.current
+                            let selected = calendar.isDate(
+                                day,
+                                inSameDayAs: model.selectedCalendarDate
+                            )
+                            let isToday = calendar.isDateInToday(day)
+
+                            Button {
+                                select(day, using: proxy)
+                            } label: {
+                                VStack(spacing: 2) {
+                                    Text(day.formatted(.dateTime.weekday(.narrow)))
+                                        .font(.system(size: 8, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(selected ? 0.9 : 0.36))
+                                    Text(day.formatted(.dateTime.day()))
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(dayNumberColor(selected: selected, isToday: isToday))
+                                    Circle()
+                                        .fill(eventIndicatorColor(for: day, selected: selected, isToday: isToday))
+                                        .frame(width: 3, height: 3)
+                                }
+                                .frame(width: CalendarDayStripLayout.dayWidth, height: 40)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(dayBackgroundColor(selected: selected, isToday: isToday))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .id(day)
+                        }
+                    }
+                    .padding(.horizontal, CalendarDayStripLayout.horizontalPadding)
+                }
+                .scrollIndicators(.hidden)
+                .onScrollGeometryChange(for: Int.self) { geometry in
+                    let firstDayCenter = CalendarDayStripLayout.horizontalPadding
+                        + CalendarDayStripLayout.dayWidth / 2
+                    return Int(
+                        ((geometry.visibleRect.midX - firstDayCenter)
+                            / CalendarDayStripLayout.pitch).rounded()
+                    )
+                } action: { _, centeredIndex in
+                    let timelineDays = days
+                    guard timelineDays.indices.contains(centeredIndex) else { return }
+                    onVisibleDateChange(timelineDays[centeredIndex])
+                }
+                .onScrollGeometryChange(for: Optional<TodayNavigationDirection>.self) { geometry in
+                    let calendar = Calendar.current
+                    let today = calendar.startOfDay(for: .now)
+                    let dayOffset = calendar.dateComponents(
+                        [.day],
+                        from: timelineAnchor,
+                        to: today
+                    ).day ?? 0
+                    let todayIndex = dayOffset + timelineRadius
+                    if todayIndex < 0 {
+                        return .backward
+                    }
+                    if todayIndex > timelineRadius * 2 {
+                        return .forward
+                    }
+
+                    let todayMinX = CalendarDayStripLayout.horizontalPadding
+                        + CGFloat(todayIndex) * CalendarDayStripLayout.pitch
+                    let todayMaxX = todayMinX + CalendarDayStripLayout.dayWidth
+                    if todayMaxX < geometry.visibleRect.minX {
+                        return .backward
+                    }
+                    if todayMinX > geometry.visibleRect.maxX {
+                        return .forward
+                    }
+                    return nil
+                } action: { _, newDirection in
+                    todayNavigationDirection = newDirection
+                }
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .black, location: 0.09),
+                            .init(color: .black, location: 0.91),
+                            .init(color: .clear, location: 1)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                }
+                .frame(height: 40)
+            }
+            .frame(height: 54)
+            .onAppear {
+                DispatchQueue.main.async {
+                    center(model.selectedCalendarDate, using: proxy, animated: false)
                 }
             }
-            .padding(.horizontal, 12)
-        }
-        .scrollIndicators(.hidden)
-        .mask {
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .black, location: 0.09),
-                    .init(color: .black, location: 0.91),
-                    .init(color: .clear, location: 1)
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+            .onChange(of: model.selectedCalendarDate) { _, newDate in
+                center(newDate, using: proxy, animated: true)
+            }
         }
     }
 
     private var days: [Date] {
         let calendar = Calendar.current
-        return (-2...7).compactMap {
-            calendar.date(byAdding: .day, value: $0, to: model.selectedCalendarDate)
+        return (-timelineRadius...timelineRadius).compactMap {
+            calendar.date(byAdding: .day, value: $0, to: timelineAnchor)
         }
     }
+
+    private func select(_ day: Date, using proxy: ScrollViewProxy) {
+        if Calendar.current.isDate(day, inSameDayAs: model.selectedCalendarDate) {
+            center(day, using: proxy, animated: true)
+        } else {
+            model.selectCalendarDate(day)
+        }
+    }
+
+    private func selectToday(using proxy: ScrollViewProxy) {
+        select(Calendar.current.startOfDay(for: .now), using: proxy)
+    }
+
+    private func center(
+        _ date: Date,
+        using proxy: ScrollViewProxy,
+        animated: Bool
+    ) {
+        let day = Calendar.current.startOfDay(for: date)
+        let distance = Calendar.current.dateComponents(
+            [.day],
+            from: timelineAnchor,
+            to: day
+        ).day ?? 0
+
+        let needsNewTimeline = abs(distance) >= timelineRadius
+        if needsNewTimeline {
+            timelineAnchor = day
+        }
+
+        let scroll = {
+            proxy.scrollTo(day, anchor: .center)
+            onVisibleDateChange(day)
+        }
+
+        let performScroll = {
+            if animated {
+                withAnimation(.snappy(duration: 0.28), scroll)
+            } else {
+                scroll()
+            }
+        }
+
+        if needsNewTimeline {
+            DispatchQueue.main.async {
+                if animated {
+                    withAnimation(.snappy(duration: 0.28), scroll)
+                } else {
+                    scroll()
+                }
+            }
+        } else {
+            performScroll()
+        }
+    }
+
+    private func dayNumberColor(selected: Bool, isToday: Bool) -> Color {
+        if isToday {
+            return selected ? .white : .red
+        }
+        return .white.opacity(selected ? 1 : 0.64)
+    }
+
+    private func dayBackgroundColor(selected: Bool, isToday: Bool) -> Color {
+        if isToday {
+            return selected ? .red : .black
+        }
+        return selected ? Color.blue.opacity(0.32) : .white.opacity(0.035)
+    }
+
+    private func eventIndicatorColor(for day: Date, selected: Bool, isToday: Bool) -> Color {
+        guard !model.events(on: day).isEmpty else { return .clear }
+        return selected && isToday ? .white : .blue
+    }
+
+    private enum TodayNavigationDirection: Equatable {
+        case backward
+        case forward
+    }
+}
+
+private enum CalendarDayStripLayout {
+    static let dayWidth: CGFloat = 35
+    static let spacing: CGFloat = 7
+    static let horizontalPadding: CGFloat = 12
+
+    static var pitch: CGFloat { dayWidth + spacing }
 }
 
 private struct CalendarEventSummary: View {
     @Bindable var model: IslandModel
 
     var body: some View {
-        let events = Array(model.events(on: model.selectedCalendarDate).prefix(3))
-        Group {
-            if events.isEmpty {
-                VStack(spacing: 5) {
-                    Image(systemName: "calendar.badge.checkmark")
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.38))
-                    Text("No events")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text("Enjoy the open space.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.36))
-                }
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(events) { event in
-                        CalendarEventRow(event: event, compact: true)
+        let allEvents = model.events(on: model.selectedCalendarDate)
+        let visibleEvents = Array(allEvents.prefix(4))
+        let overflowCount = max(allEvents.count - visibleEvents.count, 0)
+        let transitionID = "\(model.selectedCalendarDate.timeIntervalSinceReferenceDate)|"
+            + visibleEvents.map(\.id).joined(separator: "|")
+
+        ZStack(alignment: .topLeading) {
+            Group {
+                if visibleEvents.isEmpty {
+                    VStack(spacing: 5) {
+                        Image(systemName: "calendar.badge.checkmark")
+                            .font(.system(size: 19, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.38))
+                        Text("No events")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Enjoy the open space.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.36))
                     }
-                    Spacer(minLength: 0)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                } else {
+                    VStack(spacing: 3) {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10)
+                            ],
+                            alignment: .leading,
+                            spacing: 6
+                        ) {
+                            ForEach(visibleEvents) { event in
+                                CalendarEventRow(event: event, compact: true)
+                                    .frame(maxWidth: .infinity, minHeight: 24, maxHeight: 24)
+                            }
+                        }
+
+                        if overflowCount > 0 {
+                            Text("+ \(overflowCount)")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.5))
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .accessibilityLabel("\(overflowCount) more events")
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .id(transitionID)
+            .transition(.opacity)
         }
+        .animation(.easeInOut(duration: 0.2), value: transitionID)
         .contentShape(Rectangle())
     }
 }
@@ -2208,15 +2468,18 @@ private struct CalendarEventRow: View {
         HStack(alignment: .top, spacing: 9) {
             Capsule()
                 .fill(Color(red: event.red, green: event.green, blue: event.blue))
-                .frame(width: 4, height: compact ? 30 : 42)
+                .frame(width: 4, height: compact ? 24 : 42)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(event.title)
                     .font(.system(size: compact ? 11 : 13, weight: .semibold))
                     .lineLimit(compact ? 1 : 2)
+                    .truncationMode(.tail)
                 Text(eventTime)
                     .font(.system(size: compact ? 9 : 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.4))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
             Spacer(minLength: 0)
         }

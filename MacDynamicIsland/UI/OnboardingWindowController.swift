@@ -6,12 +6,16 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     private let onDismiss: () -> Void
 
     init(
-        onFinish: @escaping () -> Void,
+        launchesAtLoginByDefault: Bool,
+        onFinish: @escaping (Bool) -> Void,
         onDismiss: @escaping () -> Void
     ) {
         self.onDismiss = onDismiss
 
-        let rootView = OnboardingRootView(onFinish: onFinish)
+        let rootView = OnboardingRootView(
+            launchesAtLoginByDefault: launchesAtLoginByDefault,
+            onFinish: onFinish
+        )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Welcome to Ledge"
@@ -49,7 +53,13 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
 }
 
 private struct OnboardingRootView: View {
-    let onFinish: () -> Void
+    let onFinish: (Bool) -> Void
+    @State private var launchesAtLogin: Bool
+
+    init(launchesAtLoginByDefault: Bool, onFinish: @escaping (Bool) -> Void) {
+        self.onFinish = onFinish
+        _launchesAtLogin = State(initialValue: launchesAtLoginByDefault)
+    }
 
     var body: some View {
         ZStack {
@@ -119,16 +129,23 @@ private struct OnboardingRootView: View {
 
     private var footer: some View {
         HStack {
-            Label(
-                "Sensitive data stays local. Optional audio and Bluetooth access starts off.",
-                systemImage: "hand.raised.fill"
-            )
-            .font(.system(size: 11.5, weight: .medium))
-            .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Launch Ledge automatically when I log in", isOn: $launchesAtLogin)
+                    .toggleStyle(.checkbox)
+
+                Label(
+                    "Sensitive data stays local. Optional audio and Bluetooth access starts off.",
+                    systemImage: "hand.raised.fill"
+                )
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
-            Button("Start Ledge", action: onFinish)
+            Button("Start Ledge") {
+                onFinish(launchesAtLogin)
+            }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)

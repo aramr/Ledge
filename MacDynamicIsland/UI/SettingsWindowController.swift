@@ -3,8 +3,12 @@ import SwiftUI
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    init(model: IslandModel) {
-        let rootView = SettingsRootView(model: model, settings: model.settings)
+    init(model: IslandModel, launchAtLoginService: LaunchAtLoginService) {
+        let rootView = SettingsRootView(
+            model: model,
+            settings: model.settings,
+            launchAtLoginService: launchAtLoginService
+        )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 
@@ -61,11 +65,17 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
 private struct SettingsRootView: View {
     @Bindable var model: IslandModel
     @Bindable var settings: AppSettings
+    @Bindable var launchAtLoginService: LaunchAtLoginService
     @State private var selection: SettingsSection?
 
-    init(model: IslandModel, settings: AppSettings) {
+    init(
+        model: IslandModel,
+        settings: AppSettings,
+        launchAtLoginService: LaunchAtLoginService
+    ) {
         self.model = model
         self.settings = settings
+        self.launchAtLoginService = launchAtLoginService
         _selection = State(initialValue: model.selectedTab == .agentic ? .agentic : .general)
     }
 
@@ -81,7 +91,10 @@ private struct SettingsRootView: View {
             Group {
                 switch selection ?? .general {
                 case .general:
-                    GeneralSettingsView(settings: settings)
+                    GeneralSettingsView(
+                        settings: settings,
+                        launchAtLoginService: launchAtLoginService
+                    )
                 case .agentic:
                     AgenticSettingsView(model: model, settings: settings)
                 case .about:
@@ -122,12 +135,54 @@ private struct SettingsPage<Content: View>: View {
 
 private struct GeneralSettingsView: View {
     @Bindable var settings: AppSettings
+    @Bindable var launchAtLoginService: LaunchAtLoginService
 
     var body: some View {
         SettingsPage(
             title: "General",
             subtitle: "Choose what appears in Ledge and arrange it around your workflow."
         ) {
+            GroupBox {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle(
+                        "Launch Ledge at login",
+                        isOn: Binding(
+                            get: { launchAtLoginService.isEnabled },
+                            set: { launchAtLoginService.setEnabled($0) }
+                        )
+                    )
+                    .toggleStyle(.switch)
+
+                    if launchAtLoginService.requiresApproval {
+                        Text("macOS needs your approval before Ledge can open automatically.")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+
+                        Button("Open Login Items Settings") {
+                            launchAtLoginService.openSystemSettings()
+                        }
+                    } else if launchAtLoginService.isEnabled {
+                        Text("Ledge opens automatically after you log in to your Mac.")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Turn this on to open Ledge automatically after you log in.")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let errorMessage = launchAtLoginService.errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.red)
+                    }
+                }
+                .padding(8)
+            } label: {
+                Label("Startup", systemImage: "power")
+                    .font(.headline)
+            }
+
             GroupBox {
                 VStack(spacing: 0) {
                     ForEach(Array(settings.tabOrder.enumerated()), id: \.element) { index, tab in
@@ -182,6 +237,9 @@ private struct GeneralSettingsView: View {
                 Label("Optional System Integrations", systemImage: "hand.raised")
                     .font(.headline)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLoginService.refreshStatus()
         }
     }
 }
