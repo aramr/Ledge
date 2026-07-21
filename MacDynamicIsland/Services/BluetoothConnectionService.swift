@@ -1,6 +1,14 @@
 import Foundation
 import IOBluetooth
 
+/// `IOBluetooth` predates Swift concurrency and may deliver its Objective-C
+/// callbacks from a background queue. Retain the device while the callback is
+/// forwarded to the main actor without claiming that the framework type itself
+/// is generally safe to share between concurrent tasks.
+private struct BluetoothDeviceReference: @unchecked Sendable {
+    let device: IOBluetoothDevice
+}
+
 @MainActor
 final class BluetoothConnectionService: NSObject {
     var onDeviceConnected: ((BluetoothConnectionEvent) -> Void)?
@@ -45,22 +53,30 @@ final class BluetoothConnectionService: NSObject {
     }
 
     @objc
-    private func deviceDidConnect(
+    nonisolated private func deviceDidConnect(
         _ notification: IOBluetoothUserNotification,
         device: IOBluetoothDevice
     ) {
-        handleConnectedDevice(device, shouldPresent: true)
+        let deviceReference = BluetoothDeviceReference(device: device)
+        Task { @MainActor [weak self] in
+            guard let self, connectNotification != nil else { return }
+            handleConnectedDevice(deviceReference.device, shouldPresent: true)
+        }
     }
 
     @objc
-    private func deviceDidDisconnect(
+    nonisolated private func deviceDidDisconnect(
         _ notification: IOBluetoothUserNotification,
         device: IOBluetoothDevice
     ) {
-        let identifier = identifier(for: device)
-        connectedDeviceIdentifiers.remove(identifier)
-        recentlyPresentedAt.removeValue(forKey: identifier)
-        disconnectNotifications.removeValue(forKey: identifier)?.unregister()
+        let deviceReference = BluetoothDeviceReference(device: device)
+        Task { @MainActor [weak self] in
+            guard let self, connectNotification != nil else { return }
+            let identifier = identifier(for: deviceReference.device)
+            connectedDeviceIdentifiers.remove(identifier)
+            recentlyPresentedAt.removeValue(forKey: identifier)
+            disconnectNotifications.removeValue(forKey: identifier)?.unregister()
+        }
     }
 
     private func reconcileConnectedDevices(presentNewConnections: Bool) {

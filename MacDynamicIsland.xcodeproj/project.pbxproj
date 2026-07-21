@@ -35,7 +35,6 @@
 		10000000000000000000001A /* IOBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001D /* IOBluetooth.framework */; };
 		10000000000000000000001B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001E /* Assets.xcassets */; };
 		10000000000000000000001C /* OnboardingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001F /* OnboardingWindowController.swift */; };
-		10000000000000000000001D /* ACKNOWLEDGEMENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000020 /* ACKNOWLEDGEMENTS.md */; };
 		10000000000000000000001E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000021 /* PrivacyInfo.xcprivacy */; };
 		10000000000000000000001F /* PRIVACY.md in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* PRIVACY.md */; };
 		100000000000000000000020 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* LaunchAtLoginService.swift */; };
@@ -83,7 +82,6 @@
 		20000000000000000000001D /* IOBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOBluetooth.framework; path = System/Library/Frameworks/IOBluetooth.framework; sourceTree = SDKROOT; };
 		20000000000000000000001E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		20000000000000000000001F /* OnboardingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowController.swift; sourceTree = "<group>"; };
-		200000000000000000000020 /* ACKNOWLEDGEMENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ACKNOWLEDGEMENTS.md; sourceTree = "<group>"; };
 		200000000000000000000021 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		200000000000000000000022 /* PRIVACY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRIVACY.md; sourceTree = "<group>"; };
 		200000000000000000000023 /* Ledge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Ledge.entitlements; sourceTree = "<group>"; };
@@ -96,7 +94,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		500000000000000000000001 = {isa = PBXGroup; children = (500000000000000000000002 /* Ledge */, 500000000000000000000007 /* LedgeTests */, 500000000000000000000008 /* Frameworks */, 500000000000000000000009 /* Products */, 200000000000000000000020 /* ACKNOWLEDGEMENTS.md */, 200000000000000000000022 /* PRIVACY.md */,); sourceTree = "<group>"; };
+		500000000000000000000001 = {isa = PBXGroup; children = (500000000000000000000002 /* Ledge */, 500000000000000000000007 /* LedgeTests */, 500000000000000000000008 /* Frameworks */, 500000000000000000000009 /* Products */, 200000000000000000000022 /* PRIVACY.md */,); sourceTree = "<group>"; };
 		500000000000000000000002 /* Ledge */ = {isa = PBXGroup; children = (500000000000000000000003 /* App */, 500000000000000000000004 /* Core */, 500000000000000000000005 /* Services */, 500000000000000000000006 /* UI */, 20000000000000000000001E /* Assets.xcassets */, 20000000000000000000000D /* Info.plist */, 200000000000000000000021 /* PrivacyInfo.xcprivacy */, 200000000000000000000023 /* Ledge.entitlements */,); name = Ledge; path = MacDynamicIsland; sourceTree = "<group>"; };
 		500000000000000000000003 /* App */ = {isa = PBXGroup; children = (200000000000000000000001 /* main.swift */, 200000000000000000000002 /* AppDelegate.swift */,); path = App; sourceTree = "<group>"; };
 		500000000000000000000004 /* Core */ = {isa = PBXGroup; children = (200000000000000000000003 /* MediaSession.swift */, 200000000000000000000004 /* IslandModel.swift */, 200000000000000000000012 /* IslandContent.swift */, 200000000000000000000017 /* AppSettings.swift */,); path = Core; sourceTree = "<group>"; };
@@ -117,7 +115,7 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		900000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000001B /* Assets.xcassets in Resources */,10000000000000000000001D /* ACKNOWLEDGEMENTS.md in Resources */,10000000000000000000001E /* PrivacyInfo.xcprivacy in Resources */,10000000000000000000001F /* PRIVACY.md in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		900000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000001B /* Assets.xcassets in Resources */,10000000000000000000001E /* PrivacyInfo.xcprivacy in Resources */,10000000000000000000001F /* PRIVACY.md in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
 		900000000000000000000004 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
