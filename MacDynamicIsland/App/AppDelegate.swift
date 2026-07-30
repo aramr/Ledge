@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -17,6 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let codexUsageService = CodexUsageService()
     private let claudeUsageService = ClaudeUsageService()
     private let launchAtLoginService = LaunchAtLoginService()
+    private lazy var updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
 
     private var activeProvider: (any MediaSessionProviding)?
     private var panelController: IslandPanelController?
@@ -45,11 +51,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         configureContentServices()
         isAgenticPreviewLaunch = ProcessInfo.processInfo.arguments.contains("--agentic-preview")
         requestedPreviewOnLaunch = ProcessInfo.processInfo.arguments.contains("--preview")
+            || ProcessInfo.processInfo.arguments.contains("--side-bubble-preview")
             || ProcessInfo.processInfo.environment["LEDGE_PREVIEW"] == "1"
             || ProcessInfo.processInfo.environment["MAC_DYNAMIC_ISLAND_PREVIEW"] == "1"
 
         let isFeaturePreview = isAgenticPreviewLaunch
             || ProcessInfo.processInfo.arguments.contains("--bluetooth-preview")
+            || ProcessInfo.processInfo.arguments.contains("--side-bubble-preview")
         let shouldPresentOnboarding = ProcessInfo.processInfo.arguments.contains("--onboarding")
             || (settings.needsOnboarding && !isFeaturePreview)
         if shouldPresentOnboarding {
@@ -107,6 +115,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     planType: "plus"
                 )
             }
+        }
+
+        if ProcessInfo.processInfo.arguments.contains("--side-bubble-preview") {
+            model.setTimerMinutes(2)
+            model.startTimer()
         }
         #endif
 
@@ -204,6 +217,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         calendarService.onEventsChange = { [weak model] events in
             model?.calendarEvents = events
+        }
+        calendarService.onCurrentDayChange = { [weak model] day in
+            model?.refreshCalendarDay(day)
         }
         model.onCalendarAccessRequest = { [weak calendarService] in
             calendarService?.requestAccess()
@@ -304,6 +320,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.target = self
         menu.addItem(settings)
 
+        let checkForUpdates = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
+        checkForUpdates.target = self
+        menu.addItem(checkForUpdates)
+
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit Ledge", action: #selector(quit), keyEquivalent: "q")
@@ -355,6 +379,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         launchAtLoginService.refreshStatus()
         settingsWindowController?.present()
+    }
+
+    @objc private func checkForUpdates() {
+        updaterController.checkForUpdates(nil)
     }
 
     @objc private func showOnboarding() {

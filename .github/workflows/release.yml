@@ -1,0 +1,171 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'aramr/Ledge'
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    env:
+      APPLE_TEAM_ID: M7PFX75L8L
+      SIGNING_IDENTITY: Developer ID Application
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 26
+        run: |
+          xcode_path="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort -V | tail -1)"
+          test -n "$xcode_path"
+          sudo xcode-select --switch "$xcode_path/Contents/Developer"
+          xcodebuild -version
+
+      - name: Validate release version
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          project_version="$(xcodebuild -project MacDynamicIsland.xcodeproj -scheme Ledge -configuration Release -showBuildSettings | awk -F ' = ' '/ MARKETING_VERSION = / { print $2; exit }')"
+          test "$version" = "$project_version"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release credentials
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          missing=()
+          for variable_name in \
+            CERTIFICATE_P12_BASE64 \
+            CERTIFICATE_PASSWORD \
+            API_KEY_P8_BASE64 \
+            API_KEY_ID \
+            API_ISSUER_ID \
+            SPARKLE_PRIVATE_KEY \
+            HOMEBREW_TAP_DEPLOY_KEY
+          do
+            if test -z "${!variable_name}"; then
+              missing+=("$variable_name")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing release credential: %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
+      - name: Run release gates
+        run: Scripts/ci.sh
+
+      - name: Import Developer ID certificate
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          test -n "$CERTIFICATE_P12_BASE64"
+          test -n "$CERTIFICATE_PASSWORD"
+          certificate_path="$RUNNER_TEMP/developer-id.p12"
+          keychain_path="$RUNNER_TEMP/ledge-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 32)"
+          printf '%s' "$CERTIFICATE_P12_BASE64" | base64 -D > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security find-identity -v -p codesigning "$keychain_path"
+
+      - name: Prepare notarization credentials
+        env:
+          API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+        run: |
+          test -n "$API_KEY_P8_BASE64"
+          printf '%s' "$API_KEY_P8_BASE64" | base64 -D > "$RUNNER_TEMP/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Build signed archive
+        run: Scripts/build-release.sh "$RUNNER_TEMP/LedgeRelease"
+
+      - name: Notarize and package release
+        env:
+          APPLE_API_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_BIN_DIRECTORY: ${{ runner.temp }}/LedgeRelease/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin
+        run: |
+          Scripts/package-release.sh "$RUNNER_TEMP/LedgeRelease/Export/Ledge.app" dist
+
+      - name: Attest release artifacts
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: |
+            dist/Ledge-${{ steps.version.outputs.value }}.dmg
+            dist/Ledge-${{ steps.version.outputs.value }}.zip
+            dist/appcast.xml
+            dist/SHA256SUMS.txt
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          assets=(
+            "dist/Ledge-$VERSION.dmg"
+            "dist/Ledge-$VERSION.zip"
+            "dist/appcast.xml"
+            "dist/SHA256SUMS.txt"
+          )
+          if test -f "dist/Ledge-$VERSION-dSYM.zip"; then
+            assets+=("dist/Ledge-$VERSION-dSYM.zip")
+          fi
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+            --generate-notes \
+            --title "Ledge $VERSION" \
+            --verify-tag
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          test -n "$HOMEBREW_TAP_DEPLOY_KEY"
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$HOMEBREW_TAP_DEPLOY_KEY" > "$HOME/.ssh/ledge-homebrew-tap"
+          chmod 600 "$HOME/.ssh/ledge-homebrew-tap"
+          ssh-keyscan github.com >> "$HOME/.ssh/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/ledge-homebrew-tap -o IdentitiesOnly=yes"
+          brew tap aramr/tap git@github.com:aramr/homebrew-tap.git
+          tap_directory="$(brew --repository aramr/tap)"
+          mkdir -p "$tap_directory/Casks"
+          dmg_sha256="$(shasum -a 256 "dist/Ledge-$VERSION.dmg" | awk '{print $1}')"
+          Scripts/generate-cask.sh "$VERSION" "$dmg_sha256" > "$tap_directory/Casks/ledge.rb"
+          brew style "$tap_directory/Casks/ledge.rb"
+          brew audit --cask --strict aramr/tap/ledge
+          git -C "$tap_directory" config user.name "github-actions[bot]"
+          git -C "$tap_directory" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$tap_directory" add Casks/ledge.rb
+          git -C "$tap_directory" commit -m "Update Ledge to $VERSION"
+          git -C "$tap_directory" push

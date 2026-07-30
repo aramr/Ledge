@@ -5,6 +5,42 @@ import XCTest
 
 @MainActor
 final class IslandModelTests: XCTestCase {
+    func testCalendarDayRefreshAdvancesSelectionWhenItWasFollowingToday() {
+        let model = IslandModel()
+        let firstDay = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 7, day: 28)
+        )!
+        let nextDay = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 7, day: 29)
+        )!
+
+        model.refreshCalendarDay(firstDay)
+        model.refreshCalendarDay(nextDay)
+
+        XCTAssertEqual(model.currentCalendarDay, Calendar.current.startOfDay(for: nextDay))
+        XCTAssertEqual(model.selectedCalendarDate, Calendar.current.startOfDay(for: nextDay))
+    }
+
+    func testCalendarDayRefreshPreservesAnExplicitDateSelection() {
+        let model = IslandModel()
+        let firstDay = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 7, day: 28)
+        )!
+        let nextDay = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 7, day: 29)
+        )!
+        let selectedDay = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 7, day: 21)
+        )!
+
+        model.refreshCalendarDay(firstDay)
+        model.selectCalendarDate(selectedDay)
+        model.refreshCalendarDay(nextDay)
+
+        XCTAssertEqual(model.currentCalendarDay, Calendar.current.startOfDay(for: nextDay))
+        XCTAssertEqual(model.selectedCalendarDate, Calendar.current.startOfDay(for: selectedDay))
+    }
+
     func testPlayingBackgroundAppProducesCompactIsland() {
         let model = IslandModel()
         model.snapshot = playingSnapshot(source: "com.apple.Music")
@@ -169,6 +205,14 @@ final class IslandModelTests: XCTestCase {
                 pointerIsInsideSurface: true
             )
         )
+        XCTAssertFalse(
+            IslandPanelController.shouldIgnoreMouseEvents(
+                phase: .compact,
+                isOnboardingGreetingPresented: false,
+                pointerIsInsideSurface: false,
+                pointerIsInsideSideBubble: true
+            )
+        )
     }
 
     func testHoverExpandsIdleNotch() {
@@ -193,6 +237,91 @@ final class IslandModelTests: XCTestCase {
         XCTAssertEqual(model.phase, .expanded)
         XCTAssertTrue(model.hasActiveMedia)
         XCTAssertEqual(model.surfaceSize, CGSize(width: 760, height: 202))
+    }
+
+    func testActiveTimerAndMediaProduceSideMediaBubble() {
+        let model = IslandModel()
+        model.renderedNotchSize = CGSize(width: 184, height: 32)
+        model.snapshot = playingSnapshot(source: "com.apple.Music")
+        model.frontmostBundleIdentifier = "com.apple.Safari"
+        model.timerEndDate = .now.addingTimeInterval(60)
+
+        XCTAssertEqual(model.phase, .compact)
+        XCTAssertFalse(model.isShowingCompactMedia)
+        XCTAssertTrue(model.shouldShowSideMediaBubble)
+        XCTAssertEqual(
+            model.sideMediaBubbleFrame,
+            CGRect(x: 596, y: 6, width: 40, height: 32)
+        )
+    }
+
+    func testSideMediaBubbleOpensExpandedHome() {
+        let model = IslandModel()
+        model.snapshot = playingSnapshot(source: "com.apple.Music")
+        model.timerEndDate = .now.addingTimeInterval(60)
+        model.selectedTab = .timer
+
+        model.openSideMediaBubble()
+        // The pointer lands inside the newly expanded surface after the
+        // bubble click; that hover refresh must not redirect back to Timer.
+        model.setPointerInside(true)
+
+        XCTAssertTrue(model.isExpanded)
+        XCTAssertEqual(model.phase, .expanded)
+        XCTAssertEqual(model.selectedTab, .home)
+        XCTAssertFalse(model.shouldShowSideMediaBubble)
+    }
+
+    func testSideMediaBubbleRequiresActivelyPlayingMedia() {
+        let model = IslandModel()
+        model.snapshot = playingSnapshot(source: "com.apple.Music")
+        model.snapshot.playbackRate = 0
+        model.timerEndDate = .now.addingTimeInterval(60)
+
+        XCTAssertFalse(model.shouldShowSideMediaBubble)
+    }
+
+    func testTimerSideMediaBubbleIncludesForegroundPrimarySpotify() {
+        let model = IslandModel()
+        model.snapshot = playingSnapshot(source: "com.spotify.client")
+        model.snapshot.sourceName = "Spotify"
+        model.frontmostBundleIdentifier = "com.spotify.client"
+        model.timerEndDate = .now.addingTimeInterval(60)
+
+        XCTAssertFalse(model.hasActiveMedia)
+        XCTAssertEqual(model.phase, .compact)
+        XCTAssertTrue(model.shouldShowSideMediaBubble)
+        XCTAssertEqual(model.homeMediaSnapshot.identifier, model.snapshot.identifier)
+    }
+
+    func testTimerSideMediaBubbleIncludesForegroundSpotifyFallback() {
+        let model = IslandModel()
+        model.spotifyFallbackSnapshot = playingSnapshot(source: "com.spotify.client")
+        model.frontmostBundleIdentifier = "com.spotify.client"
+        model.timerEndDate = .now.addingTimeInterval(60)
+
+        XCTAssertFalse(model.hasActiveMedia)
+        XCTAssertTrue(model.homeMediaUsesSpotifyFallback)
+        XCTAssertTrue(model.shouldShowSideMediaBubble)
+        XCTAssertEqual(
+            model.homeMediaSnapshot.identifier,
+            model.spotifyFallbackSnapshot.identifier
+        )
+    }
+
+    func testTimerSideMediaBubblePrefersPlayingSpotifyOverBrowserMediaRemote() {
+        let model = IslandModel()
+        model.snapshot = playingSnapshot(source: "com.apple.Safari")
+        model.spotifyFallbackSnapshot = playingSnapshot(source: "com.spotify.client")
+        model.frontmostBundleIdentifier = "com.spotify.client"
+        model.timerEndDate = .now.addingTimeInterval(60)
+
+        XCTAssertTrue(model.homeMediaUsesSpotifyFallback)
+        XCTAssertTrue(model.shouldShowSideMediaBubble)
+        XCTAssertEqual(
+            model.homeMediaSnapshot.sourceBundleIdentifier,
+            "com.spotify.client"
+        )
     }
 
     func testPausedMediaCanResumeFromExpandedIsland() {

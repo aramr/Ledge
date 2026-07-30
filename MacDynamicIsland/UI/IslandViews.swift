@@ -98,6 +98,9 @@ struct IslandRootView: View {
                     .animation(surfaceAnimation, value: model.phase)
                     .animation(surfaceAnimation, value: model.surfaceSize)
             }
+
+            SideMediaBubble(model: model)
+                .zIndex(4)
         }
         .frame(
             width: IslandModel.canvasSize.width,
@@ -738,6 +741,131 @@ private struct WaveformBarStack: View {
     }
 }
 
+private struct SideMediaBubble: View {
+    @Bindable var model: IslandModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isDetached = false
+    @State private var isVisible = false
+    @State private var isArtworkVisible = false
+
+    var body: some View {
+        Button(action: model.openSideMediaBubble) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(notchBlack)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(.white.opacity(0.08), lineWidth: 0.75)
+                    }
+
+                ArtworkView(
+                    snapshot: model.homeMediaSnapshot,
+                    size: 24,
+                    cornerRadius: 7
+                )
+                .scaleEffect(isArtworkVisible ? 1 : 0.88)
+                .opacity(isArtworkVisible ? 1 : 0)
+            }
+            .frame(
+                width: IslandModel.sideMediaBubbleSize.width,
+                height: IslandModel.sideMediaBubbleSize.height
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(SideMediaBubbleButtonStyle())
+        // Begin as a small bud joined to the timer's right edge. The delayed,
+        // slightly under-damped spring lets it grow, separate, and settle into
+        // its final gap after the primary island has finished retracting.
+        .scaleEffect(
+            x: isDetached ? 1 : 0.5,
+            y: isDetached ? 1 : 0.68,
+            anchor: .leading
+        )
+        .offset(x: isDetached ? 0 : -14)
+        .opacity(isVisible ? 1 : 0)
+        .shadow(
+            color: .black.opacity(isVisible ? 0.24 : 0),
+            radius: 7,
+            y: 2
+        )
+        // Position after local transforms so scaling is anchored to the
+        // bubble itself rather than the full island canvas.
+        .position(model.sideMediaBubbleCenter)
+        .allowsHitTesting(
+            model.shouldShowSideMediaBubble && isDetached && isVisible
+        )
+        .accessibilityLabel(
+            "Open media controls for \(model.homeMediaSnapshot.title)"
+        )
+        .task(id: model.shouldShowSideMediaBubble) {
+            guard model.shouldShowSideMediaBubble else {
+                // Expansion always phases the companion away at its current
+                // position. It must not travel toward either the notch or the
+                // expanded Home artwork.
+                withAnimation(.easeOut(duration: 0.12)) {
+                    isVisible = false
+                }
+                try? await Task.sleep(for: .milliseconds(120))
+                guard !model.shouldShowSideMediaBubble else { return }
+                isDetached = false
+                isArtworkVisible = false
+                return
+            }
+
+            isDetached = false
+            isVisible = false
+            isArtworkVisible = false
+            do {
+                try await Task.sleep(
+                    for: .milliseconds(reduceMotion ? 170 : 390)
+                )
+            } catch {
+                return
+            }
+            guard model.shouldShowSideMediaBubble else { return }
+
+            // Reveal the attached black bud without a cross-fade. Because it
+            // initially overlaps the notch edge, the first visible change is
+            // growth of the notch itself rather than artwork appearing beside
+            // it.
+            isVisible = true
+            withAnimation(detachmentAnimation) {
+                isDetached = true
+            }
+
+            do {
+                try await Task.sleep(
+                    for: .milliseconds(reduceMotion ? 35 : 90)
+                )
+            } catch {
+                return
+            }
+            guard model.shouldShowSideMediaBubble else { return }
+            withAnimation(.easeOut(duration: reduceMotion ? 0.1 : 0.16)) {
+                isArtworkVisible = true
+            }
+        }
+    }
+
+    private var detachmentAnimation: Animation {
+        reduceMotion
+            ? .easeOut(duration: 0.16)
+            : .spring(response: 0.46, dampingFraction: 0.72, blendDuration: 0)
+    }
+}
+
+private struct SideMediaBubbleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .brightness(configuration.isPressed ? 0.04 : 0)
+            .animation(
+                .spring(response: 0.2, dampingFraction: 0.82),
+                value: configuration.isPressed
+            )
+    }
+}
+
 private struct SharedArtwork: View {
     @Bindable var model: IslandModel
 
@@ -786,8 +914,13 @@ private struct SharedArtwork: View {
         return CGPoint(x: surfaceOriginX + 100, y: 116)
     }
 
-    private var artworkAnimation: Animation {
-        model.phase == .expanded
+    private var artworkAnimation: Animation? {
+        // While Timer owns the compact island, the separate side bubble is the
+        // only visible compact artwork. Keep this hidden shared copy at its
+        // destination and reveal it there, rather than animating it across the
+        // screen during either a Timer hover or a bubble click.
+        guard !model.isTimerActive else { return nil }
+        return model.phase == .expanded
             ? .spring(response: 0.42, dampingFraction: 0.86, blendDuration: 0)
             : .spring(response: 0.38, dampingFraction: 0.94, blendDuration: 0)
     }
@@ -2028,7 +2161,10 @@ private struct CalendarDayStrip: View {
                                 day,
                                 inSameDayAs: model.selectedCalendarDate
                             )
-                            let isToday = calendar.isDateInToday(day)
+                            let isToday = calendar.isDate(
+                                day,
+                                inSameDayAs: model.currentCalendarDay
+                            )
 
                             Button {
                                 select(day, using: proxy)
@@ -2071,11 +2207,10 @@ private struct CalendarDayStrip: View {
                 }
                 .onScrollGeometryChange(for: Optional<TodayNavigationDirection>.self) { geometry in
                     let calendar = Calendar.current
-                    let today = calendar.startOfDay(for: .now)
                     let dayOffset = calendar.dateComponents(
                         [.day],
                         from: timelineAnchor,
-                        to: today
+                        to: model.currentCalendarDay
                     ).day ?? 0
                     let todayIndex = dayOffset + timelineRadius
                     if todayIndex < 0 {
@@ -2140,7 +2275,7 @@ private struct CalendarDayStrip: View {
     }
 
     private func selectToday(using proxy: ScrollViewProxy) {
-        select(Calendar.current.startOfDay(for: .now), using: proxy)
+        select(model.currentCalendarDay, using: proxy)
     }
 
     private func center(
