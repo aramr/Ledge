@@ -12,6 +12,8 @@ enum IslandPhase: Equatable {
 final class IslandModel {
     static let canvasSize = CGSize(width: 820, height: 420)
     static let homeExpandedSurfaceSize = CGSize(width: 760, height: 202)
+    static let sideMediaBubbleSize = CGSize(width: 40, height: 32)
+    static let sideMediaBubbleGap: CGFloat = 8
 
     let settings: AppSettings
     var snapshot: MediaSessionSnapshot = .empty
@@ -40,6 +42,7 @@ final class IslandModel {
         }
     }
     var calendarAccessState: CalendarAccessState = .unknown
+    var currentCalendarDay = Calendar.current.startOfDay(for: .now)
     var selectedCalendarDate = Calendar.current.startOfDay(for: .now)
     var displayedCalendarMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     var calendarEvents: [CalendarEventItem] = []
@@ -174,6 +177,17 @@ final class IslandModel {
     }
 
     var homeMediaUsesSpotifyFallback: Bool {
+        // A running timer owns the primary compact surface, so Spotify is no
+        // longer redundant even when Spotify itself is frontmost. Prefer its
+        // live fallback for the companion bubble and the Home view it opens,
+        // unless MediaRemote is already reporting Spotify directly.
+        if isTimerActive,
+           hasSpotifyFallback,
+           spotifyFallbackSnapshot.isPlaying,
+           !(hasPrimaryMediaSnapshot && Self.isSpotify(snapshot)) {
+            return true
+        }
+
         // When compact media exists, Home follows the same priority decision.
         if hasActiveMedia {
             return usesSpotifyFallback
@@ -217,6 +231,29 @@ final class IslandModel {
             && !isShowingBluetoothConnection
             && !isTimerActive
             && hasActiveMedia
+    }
+
+    var shouldShowSideMediaBubble: Bool {
+        phase == .compact
+            && isTimerActive
+            && homeMediaSnapshot.isPlaying
+            && visibleTabs.contains(.home)
+            && !isOnboardingGreetingPresented
+            && !isShowingBluetoothConnection
+    }
+
+    var sideMediaBubbleFrame: CGRect {
+        let compactRightEdge = Self.canvasSize.width / 2 + timerCompactSurfaceSize.width / 2
+        return CGRect(
+            x: compactRightEdge + Self.sideMediaBubbleGap,
+            y: (timerCompactSurfaceSize.height - Self.sideMediaBubbleSize.height) / 2,
+            width: Self.sideMediaBubbleSize.width,
+            height: Self.sideMediaBubbleSize.height
+        )
+    }
+
+    var sideMediaBubbleCenter: CGPoint {
+        CGPoint(x: sideMediaBubbleFrame.midX, y: sideMediaBubbleFrame.midY)
     }
 
     var shouldCaptureLiveWaveform: Bool {
@@ -296,7 +333,11 @@ final class IslandModel {
             return CGSize(width: 760, height: 390)
         }
 
-        switch selectedTab {
+        return expandedSurfaceSize(for: selectedTab)
+    }
+
+    func expandedSurfaceSize(for tab: IslandTab) -> CGSize {
+        switch tab {
         case .home:
             return Self.homeExpandedSurfaceSize
         case .clipboard:
@@ -331,7 +372,7 @@ final class IslandModel {
 
         if inside {
             guard isEnabled else { return }
-            if isTimerActive {
+            if isTimerActive && !isExpanded {
                 selectedTab = .timer
                 isCalendarDetailPresented = false
             }
@@ -355,6 +396,14 @@ final class IslandModel {
         }
         collapseTask?.cancel()
         isExpanded.toggle()
+    }
+
+    func openSideMediaBubble() {
+        guard shouldShowSideMediaBubble else { return }
+        collapseTask?.cancel()
+        isCalendarDetailPresented = false
+        selectTab(.home)
+        isExpanded = true
     }
 
     func send(_ command: MediaCommand) {
@@ -468,6 +517,21 @@ final class IslandModel {
 
     func requestCalendarAccess() {
         onCalendarAccessRequest?()
+    }
+
+    func refreshCalendarDay(_ date: Date = .now) {
+        let calendar = Calendar.current
+        let newCurrentDay = calendar.startOfDay(for: date)
+        guard newCurrentDay != currentCalendarDay else { return }
+
+        let wasFollowingCurrentDay = selectedCalendarDate == currentCalendarDay
+        currentCalendarDay = newCurrentDay
+
+        // Keep the default "today" selection moving across midnight, while
+        // preserving a date the user deliberately selected.
+        if wasFollowingCurrentDay {
+            selectCalendarDate(newCurrentDay)
+        }
     }
 
     func selectCalendarDate(_ date: Date) {

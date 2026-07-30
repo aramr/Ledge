@@ -6,11 +6,15 @@ import Foundation
 final class CalendarService {
     private let store = EKEventStore()
     private var storeObserver: NSObjectProtocol?
+    private var dayChangeObservers: [NSObjectProtocol] = []
+    private var wakeObserver: NSObjectProtocol?
+    private var dayChangeTimer: Timer?
     private var selectedDate = Calendar.current.startOfDay(for: .now)
     private var displayedMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
 
     var onAccessStateChange: ((CalendarAccessState) -> Void)?
     var onEventsChange: (([CalendarEventItem]) -> Void)?
+    var onCurrentDayChange: ((Date) -> Void)?
 
     func start() {
         storeObserver = NotificationCenter.default.addObserver(
@@ -21,6 +25,8 @@ final class CalendarService {
             Task { @MainActor in self?.reload() }
         }
 
+        observeCurrentDayChanges()
+        refreshCurrentDay()
         updateAuthorizationState()
     }
 
@@ -29,6 +35,14 @@ final class CalendarService {
             NotificationCenter.default.removeObserver(storeObserver)
         }
         storeObserver = nil
+        dayChangeObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        dayChangeObservers = []
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+        }
+        wakeObserver = nil
+        dayChangeTimer?.invalidate()
+        dayChangeTimer = nil
     }
 
     func requestAccess() {
@@ -53,6 +67,57 @@ final class CalendarService {
         selectedDate = Calendar.current.startOfDay(for: date)
         self.displayedMonth = displayedMonth
         reload()
+    }
+
+    private func observeCurrentDayChanges() {
+        let notificationCenter = NotificationCenter.default
+        let names: [Notification.Name] = [
+            .NSCalendarDayChanged,
+            .NSSystemClockDidChange,
+            .NSSystemTimeZoneDidChange
+        ]
+
+        dayChangeObservers = names.map { name in
+            notificationCenter.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.refreshCurrentDay() }
+            }
+        }
+
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshCurrentDay() }
+        }
+    }
+
+    private func refreshCurrentDay() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        onCurrentDayChange?(today)
+        scheduleNextDayRefresh(after: today, calendar: calendar)
+    }
+
+    private func scheduleNextDayRefresh(after today: Date, calendar: Calendar) {
+        dayChangeTimer?.invalidate()
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: today) else {
+            dayChangeTimer = nil
+            return
+        }
+
+        let timer = Timer(
+            timeInterval: max(nextDay.timeIntervalSinceNow + 0.5, 1),
+            repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshCurrentDay() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        dayChangeTimer = timer
     }
 
     private func updateAuthorizationState() {

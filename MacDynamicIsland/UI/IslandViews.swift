@@ -72,7 +72,10 @@ struct IslandRootView: View {
                 // spacing appear to stretch during the island spring.
                 SharedArtwork(model: model)
                     .opacity(showsSharedMediaElements ? 1 : 0)
-                    .animation(contentFadeAnimation, value: showsSharedMediaElements)
+                    .animation(
+                        sharedArtworkOpacityAnimation,
+                        value: showsSharedMediaElements
+                    )
                     .allowsHitTesting(false)
                     .zIndex(2)
 
@@ -98,6 +101,9 @@ struct IslandRootView: View {
                     .animation(surfaceAnimation, value: model.phase)
                     .animation(surfaceAnimation, value: model.surfaceSize)
             }
+
+            SideMediaBubble(model: model)
+                .zIndex(4)
         }
         .frame(
             width: IslandModel.canvasSize.width,
@@ -173,6 +179,16 @@ struct IslandRootView: View {
         .easeOut(duration: model.phase == .expanded ? 0.14 : 0.09)
     }
 
+    private var sharedArtworkOpacityAnimation: Animation? {
+        // Timer compact mode uses only the detached side bubble. Remove the
+        // expanded artwork in the phase-change transaction so it cannot flash
+        // at the compact media coordinate while the bubble waits to detach.
+        if model.isTimerActive && model.phase != .expanded {
+            return nil
+        }
+        return contentFadeAnimation
+    }
+
     private var compactContentAnimation: Animation {
         if model.isTimerStartTransitioning {
             return reduceMotion
@@ -200,12 +216,15 @@ struct IslandRootView: View {
     }
 
     private var renderedExpandedSurfaceSize: CGSize {
-        // Hold the outgoing timer setup at its original coordinates while the
-        // shell retracts. Once hidden, the running timer can adopt its smaller
-        // expanded layout without producing visible reflow.
-        model.isTimerStartTransitioning
-            ? IslandModel.homeExpandedSurfaceSize
-            : model.expandedSurfaceSize
+        if model.isCalendarDetailPresented {
+            return model.expandedSurfaceSize
+        }
+
+        // All tabs share one stationary content canvas. Timer can still use
+        // its smaller 680×132 silhouette because the root mask follows
+        // model.surfaceSize, while the tab bar and crossfade stay at the same
+        // coordinates used by Home, Clipboard, and Agent limits.
+        return IslandModel.homeExpandedSurfaceSize
     }
 
     private var expandedContentScale: CGFloat {
@@ -738,6 +757,127 @@ private struct WaveformBarStack: View {
     }
 }
 
+private struct SideMediaBubble: View {
+    @Bindable var model: IslandModel
+
+    var body: some View {
+        if model.shouldShowSideMediaBubble {
+            SideMediaBubbleContent(model: model)
+        }
+    }
+}
+
+private struct SideMediaBubbleContent: View {
+    @Bindable var model: IslandModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isDetached = false
+    @State private var isVisible = false
+    @State private var isArtworkVisible = false
+
+    var body: some View {
+        Button(action: model.openSideMediaBubble) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(notchBlack)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(.white.opacity(0.08), lineWidth: 0.75)
+                    }
+
+                ArtworkView(
+                    snapshot: model.homeMediaSnapshot,
+                    size: 24,
+                    cornerRadius: 7
+                )
+                .scaleEffect(isArtworkVisible ? 1 : 0.88)
+                .opacity(isArtworkVisible ? 1 : 0)
+            }
+            .frame(
+                width: IslandModel.sideMediaBubbleSize.width,
+                height: IslandModel.sideMediaBubbleSize.height
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(SideMediaBubbleButtonStyle())
+        // Begin as a small bud joined to the timer's right edge. The delayed,
+        // slightly under-damped spring lets it grow, separate, and settle into
+        // its final gap after the primary island has finished retracting.
+        .scaleEffect(
+            x: isDetached ? 1 : 0.5,
+            y: isDetached ? 1 : 0.68,
+            anchor: .leading
+        )
+        .offset(x: isDetached ? 0 : -14)
+        .opacity(isVisible ? 1 : 0)
+        .shadow(
+            color: .black.opacity(isVisible ? 0.24 : 0),
+            radius: 7,
+            y: 2
+        )
+        // Position after local transforms so scaling is anchored to the
+        // bubble itself rather than the full island canvas.
+        .position(model.sideMediaBubbleCenter)
+        .allowsHitTesting(
+            model.shouldShowSideMediaBubble && isDetached && isVisible
+        )
+        .accessibilityLabel(
+            "Open media controls for \(model.homeMediaSnapshot.title)"
+        )
+        .task {
+            isDetached = false
+            isVisible = false
+            isArtworkVisible = false
+            do {
+                try await Task.sleep(
+                    for: .milliseconds(reduceMotion ? 170 : 390)
+                )
+            } catch {
+                return
+            }
+            guard model.shouldShowSideMediaBubble else { return }
+
+            // Reveal the attached black bud without a cross-fade. Because it
+            // initially overlaps the notch edge, the first visible change is
+            // growth of the notch itself rather than artwork appearing beside
+            // it.
+            isVisible = true
+            withAnimation(detachmentAnimation) {
+                isDetached = true
+            }
+
+            do {
+                try await Task.sleep(
+                    for: .milliseconds(reduceMotion ? 35 : 90)
+                )
+            } catch {
+                return
+            }
+            guard model.shouldShowSideMediaBubble else { return }
+            withAnimation(.easeOut(duration: reduceMotion ? 0.1 : 0.16)) {
+                isArtworkVisible = true
+            }
+        }
+    }
+
+    private var detachmentAnimation: Animation {
+        reduceMotion
+            ? .easeOut(duration: 0.16)
+            : .spring(response: 0.46, dampingFraction: 0.72, blendDuration: 0)
+    }
+}
+
+private struct SideMediaBubbleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .brightness(configuration.isPressed ? 0.04 : 0)
+            .animation(
+                .spring(response: 0.2, dampingFraction: 0.82),
+                value: configuration.isPressed
+            )
+    }
+}
+
 private struct SharedArtwork: View {
     @Bindable var model: IslandModel
 
@@ -786,8 +926,13 @@ private struct SharedArtwork: View {
         return CGPoint(x: surfaceOriginX + 100, y: 116)
     }
 
-    private var artworkAnimation: Animation {
-        model.phase == .expanded
+    private var artworkAnimation: Animation? {
+        // While Timer owns the compact island, the separate side bubble is the
+        // only visible compact artwork. Keep this hidden shared copy at its
+        // destination and reveal it there, rather than animating it across the
+        // screen during either a Timer hover or a bubble click.
+        guard !model.isTimerActive else { return nil }
+        return model.phase == .expanded
             ? .spring(response: 0.42, dampingFraction: 0.86, blendDuration: 0)
             : .spring(response: 0.38, dampingFraction: 0.94, blendDuration: 0)
     }
@@ -944,35 +1089,86 @@ private struct ExpandedTabbedView: View {
                     .frame(height: 50)
             } else {
                 IslandTabBar(model: model)
-                    .frame(height: 44)
+                    .frame(width: tabBarWidth, height: 44)
+                    .animation(
+                        .spring(response: 0.38, dampingFraction: 0.88),
+                        value: tabBarWidth
+                    )
             }
 
             ZStack {
+                // Use a flexible zero-content base and place retained tabs in
+                // overlays. Overlay children keep their own geometry without
+                // contributing their hidden size to the VStack. Otherwise
+                // Home's 158-point content height forces the active timer's
+                // 88-point content slot taller and pushes the tab bar upward.
+                Color.clear
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .home) {
+                            HomeTabView(model: model)
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .clipboard) {
+                            ClipboardTabView(model: model)
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .timer) {
+                            TimerTabView(model: model)
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .agentic) {
+                            AgenticTabView(model: model)
+                        }
+                    }
+                    .opacity(model.isCalendarDetailPresented ? 0 : 1)
+                    .allowsHitTesting(!model.isCalendarDetailPresented)
+                    .accessibilityHidden(model.isCalendarDetailPresented)
+
                 if model.isCalendarDetailPresented {
                     CalendarDetailView(model: model)
                         .transition(contentTransition)
-                } else {
-                    switch model.selectedTab {
-                    case .home:
-                        HomeTabView(model: model)
-                            .transition(contentTransition)
-                    case .clipboard:
-                        ClipboardTabView(model: model)
-                            .transition(contentTransition)
-                    case .timer:
-                        TimerTabView(model: model)
-                            .transition(contentTransition)
-                    case .agentic:
-                        AgenticTabView(model: model)
-                            .transition(contentTransition)
-                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.88), value: model.selectedTab)
         .animation(.spring(response: 0.4, dampingFraction: 0.9), value: model.isCalendarDetailPresented)
+    }
+
+    private var tabBarWidth: CGFloat {
+        model.selectedTab == .timer && model.isTimerActive
+            ? 680
+            : IslandModel.homeExpandedSurfaceSize.width
+    }
+
+    private func tabLayer<Content: View>(
+        for tab: IslandTab,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let isSelected = model.selectedTab == tab
+        let surfaceSize = model.expandedSurfaceSize(for: tab)
+
+        return content()
+            // Each tab keeps its own final geometry while the centered shell
+            // changes size. In particular, the outgoing 680-point running
+            // timer no longer reflows inside Home's growing 760-point frame.
+            .frame(
+                width: surfaceSize.width,
+                height: max(0, surfaceSize.height - 44),
+                alignment: .top
+            )
+            .opacity(isSelected ? 1 : 0)
+            .scaleEffect(isSelected ? 1 : 0.985, anchor: .top)
+            .allowsHitTesting(isSelected)
+            .accessibilityHidden(!isSelected)
+            .zIndex(isSelected ? 1 : 0)
+            .animation(
+                .spring(response: 0.38, dampingFraction: 0.88),
+                value: isSelected
+            )
     }
 
     private var contentTransition: AnyTransition {
@@ -1981,6 +2177,7 @@ private struct CalendarDayStrip: View {
     let onVisibleDateChange: (Date) -> Void
     @State private var timelineAnchor: Date
     @State private var todayNavigationDirection: TodayNavigationDirection?
+    @State private var isInitialScrollPositioned = false
 
     private let timelineRadius = 730
 
@@ -2028,7 +2225,10 @@ private struct CalendarDayStrip: View {
                                 day,
                                 inSameDayAs: model.selectedCalendarDate
                             )
-                            let isToday = calendar.isDateInToday(day)
+                            let isToday = calendar.isDate(
+                                day,
+                                inSameDayAs: model.currentCalendarDay
+                            )
 
                             Button {
                                 select(day, using: proxy)
@@ -2065,17 +2265,17 @@ private struct CalendarDayStrip: View {
                             / CalendarDayStripLayout.pitch).rounded()
                     )
                 } action: { _, centeredIndex in
+                    guard isInitialScrollPositioned else { return }
                     let timelineDays = days
                     guard timelineDays.indices.contains(centeredIndex) else { return }
                     onVisibleDateChange(timelineDays[centeredIndex])
                 }
                 .onScrollGeometryChange(for: Optional<TodayNavigationDirection>.self) { geometry in
                     let calendar = Calendar.current
-                    let today = calendar.startOfDay(for: .now)
                     let dayOffset = calendar.dateComponents(
                         [.day],
                         from: timelineAnchor,
-                        to: today
+                        to: model.currentCalendarDay
                     ).day ?? 0
                     let todayIndex = dayOffset + timelineRadius
                     if todayIndex < 0 {
@@ -2096,6 +2296,7 @@ private struct CalendarDayStrip: View {
                     }
                     return nil
                 } action: { _, newDirection in
+                    guard isInitialScrollPositioned else { return }
                     todayNavigationDirection = newDirection
                 }
                 .mask {
@@ -2113,9 +2314,19 @@ private struct CalendarDayStrip: View {
                 .frame(height: 40)
             }
             .frame(height: 54)
+            .opacity(isInitialScrollPositioned ? 1 : 0)
             .onAppear {
+                isInitialScrollPositioned = false
+                todayNavigationDirection = nil
                 DispatchQueue.main.async {
                     center(model.selectedCalendarDate, using: proxy, animated: false)
+                    DispatchQueue.main.async {
+                        // Do not expose the ScrollView's temporary leading-edge
+                        // geometry. It otherwise reports the start of the
+                        // four-year timeline for one frame before scrollTo
+                        // reaches the selected day.
+                        isInitialScrollPositioned = true
+                    }
                 }
             }
             .onChange(of: model.selectedCalendarDate) { _, newDate in
@@ -2140,7 +2351,7 @@ private struct CalendarDayStrip: View {
     }
 
     private func selectToday(using proxy: ScrollViewProxy) {
-        select(Calendar.current.startOfDay(for: .now), using: proxy)
+        select(model.currentCalendarDay, using: proxy)
     }
 
     private func center(

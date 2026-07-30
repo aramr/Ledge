@@ -14,6 +14,7 @@ final class IslandPanelController {
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
     private var pointerIsInside: Bool?
+    private var pointerIsInsideSideBubble = false
 
     init(model: IslandModel) {
         self.model = model
@@ -73,6 +74,8 @@ final class IslandPanelController {
             _ = model.surfaceSize
             _ = model.hasActiveMedia
             _ = model.snapshot.identifier
+            _ = model.shouldShowSideMediaBubble
+            _ = model.sideMediaBubbleFrame
             _ = model.selectedTab
             _ = model.selectedClipboardEntryIDs
         } onChange: { [weak self] in
@@ -153,11 +156,23 @@ final class IslandPanelController {
             height: size.height
         )
         let isInside = panel.isVisible && surfaceFrame.contains(NSEvent.mouseLocation)
+        let localBubbleFrame = model.sideMediaBubbleFrame
+        let bubbleFrame = NSRect(
+            x: panel.frame.minX + localBubbleFrame.minX,
+            y: panel.frame.maxY - localBubbleFrame.maxY,
+            width: localBubbleFrame.width,
+            height: localBubbleFrame.height
+        )
+        let isInsideSideBubble = panel.isVisible
+            && model.shouldShowSideMediaBubble
+            && bubbleFrame.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = Self.shouldIgnoreMouseEvents(
             phase: model.phase,
             isOnboardingGreetingPresented: model.isOnboardingGreetingPresented,
-            pointerIsInsideSurface: isInside
+            pointerIsInsideSurface: isInside,
+            pointerIsInsideSideBubble: isInsideSideBubble
         )
+        pointerIsInsideSideBubble = isInsideSideBubble
         guard pointerIsInside != isInside else { return }
         pointerIsInside = isInside
         model.setPointerInside(isInside)
@@ -166,7 +181,8 @@ final class IslandPanelController {
     static func shouldIgnoreMouseEvents(
         phase: IslandPhase,
         isOnboardingGreetingPresented: Bool,
-        pointerIsInsideSurface: Bool
+        pointerIsInsideSurface: Bool,
+        pointerIsInsideSideBubble: Bool = false
     ) -> Bool {
         // The AppKit panel is intentionally canvas-sized so the island can
         // expand without rebuilding its SwiftUI hierarchy. During onboarding,
@@ -176,7 +192,10 @@ final class IslandPanelController {
         if isOnboardingGreetingPresented {
             return !pointerIsInsideSurface
         }
-        return phase != .expanded
+        if phase == .expanded {
+            return false
+        }
+        return !pointerIsInsideSideBubble
     }
 
     private func updatePanel(animated: Bool) {
@@ -199,7 +218,8 @@ final class IslandPanelController {
         panel.ignoresMouseEvents = Self.shouldIgnoreMouseEvents(
             phase: phase,
             isOnboardingGreetingPresented: model.isOnboardingGreetingPresented,
-            pointerIsInsideSurface: pointerIsInside ?? false
+            pointerIsInsideSurface: pointerIsInside ?? false,
+            pointerIsInsideSideBubble: pointerIsInsideSideBubble
         )
 
         if !panel.isVisible || !animated {

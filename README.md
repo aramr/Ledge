@@ -13,6 +13,12 @@
   in one polished surface that stays out of the way until you need it.
 </p>
 
+<p align="center">
+  <a href="https://github.com/aramr/Ledge/actions/workflows/ci.yml"><img src="https://github.com/aramr/Ledge/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://github.com/aramr/Ledge/releases/latest"><img src="https://img.shields.io/github/v/release/aramr/Ledge?display_name=tag" alt="Latest release"></a>
+</p>
+
 ## What is Ledge?
 
 Ledge is a native macOS menu-bar app that turns the area around the camera notch into a compact, interactive workspace. It remains visually quiet while idle, surfaces useful information when something is active, and expands into a dashboard when you hover or click.
@@ -55,7 +61,23 @@ Control active media, view artwork and live playback progress, and check upcomin
 - **Notch-aware design:** uses the physical MacBook notch when available and falls back to a centered island on external displays.
 - **Native macOS behavior:** menu-bar-only, no Dock icon, all-Spaces support, full-screen compatibility, and permission-aware integrations.
 
-## Prerequisites
+## Installation
+
+### Homebrew
+
+```sh
+brew install --cask aramr/tap/ledge
+```
+
+Homebrew installs Ledge into Applications. Future versions can be installed through Homebrew or from **Check for Updates…** in Ledge’s menu-bar menu.
+
+### Direct download
+
+Download `Ledge-<version>.dmg` from the [latest GitHub Release](https://github.com/aramr/Ledge/releases/latest), open it, and drag Ledge into Applications. Every official DMG is Developer ID signed, notarized by Apple, and published with a SHA-256 checksum and GitHub artifact attestation.
+
+Ledge requires macOS 15 or later. It is designed for MacBooks with a camera notch and provides a centered fallback island on other Macs and external displays.
+
+## Build requirements
 
 - macOS 15 or later
 - Xcode 26 or later, including the Xcode command-line tools
@@ -139,8 +161,7 @@ xcodebuild test \
 Run the complete local security and release gates:
 
 ```sh
-Scripts/security-check.sh
-Scripts/release-check.sh
+Scripts/ci.sh
 ```
 
 Project layout:
@@ -156,4 +177,10 @@ Project layout:
 
 Ledge is local-first. It does not require a Ledge account or backend, does not transmit clipboard or Calendar contents, and never writes captured system audio to disk. Media metadata and agent-usage snapshots are session-only. See [PRIVACY.md](PRIVACY.md) for the complete data-handling notice.
 
-Ledge is intended for direct Developer ID distribution rather than the Mac App Store because cross-application Now Playing support relies on a private macOS framework through the system automation host. Review [RELEASE.md](RELEASE.md) before creating a public build, and verify the final signed artifact with `Scripts/verify-distribution.sh`.
+Review [RELEASE.md](RELEASE.md) before creating a public build, and verify the final signed artifact with `Scripts/verify-distribution.sh`.
+
+## Contributing and license
+
+Issues and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before contributing. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+Ledge is available under the [MIT License](LICENSE).
