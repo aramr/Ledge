@@ -44,6 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Materialize the lazy controller on every normal launch so Sparkle
+        // can schedule automatic checks before the user invokes the manual
+        // "Check for Updates…" menu item.
+        _ = updaterController
+
         configureStatusItem()
         configureModel()
 
