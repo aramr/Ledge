@@ -72,7 +72,10 @@ struct IslandRootView: View {
                 // spacing appear to stretch during the island spring.
                 SharedArtwork(model: model)
                     .opacity(showsSharedMediaElements ? 1 : 0)
-                    .animation(contentFadeAnimation, value: showsSharedMediaElements)
+                    .animation(
+                        sharedArtworkOpacityAnimation,
+                        value: showsSharedMediaElements
+                    )
                     .allowsHitTesting(false)
                     .zIndex(2)
 
@@ -176,6 +179,16 @@ struct IslandRootView: View {
         .easeOut(duration: model.phase == .expanded ? 0.14 : 0.09)
     }
 
+    private var sharedArtworkOpacityAnimation: Animation? {
+        // Timer compact mode uses only the detached side bubble. Remove the
+        // expanded artwork in the phase-change transaction so it cannot flash
+        // at the compact media coordinate while the bubble waits to detach.
+        if model.isTimerActive && model.phase != .expanded {
+            return nil
+        }
+        return contentFadeAnimation
+    }
+
     private var compactContentAnimation: Animation {
         if model.isTimerStartTransitioning {
             return reduceMotion
@@ -203,12 +216,15 @@ struct IslandRootView: View {
     }
 
     private var renderedExpandedSurfaceSize: CGSize {
-        // Hold the outgoing timer setup at its original coordinates while the
-        // shell retracts. Once hidden, the running timer can adopt its smaller
-        // expanded layout without producing visible reflow.
-        model.isTimerStartTransitioning
-            ? IslandModel.homeExpandedSurfaceSize
-            : model.expandedSurfaceSize
+        if model.isCalendarDetailPresented {
+            return model.expandedSurfaceSize
+        }
+
+        // All tabs share one stationary content canvas. Timer can still use
+        // its smaller 680×132 silhouette because the root mask follows
+        // model.surfaceSize, while the tab bar and crossfade stay at the same
+        // coordinates used by Home, Clipboard, and Agent limits.
+        return IslandModel.homeExpandedSurfaceSize
     }
 
     private var expandedContentScale: CGFloat {
@@ -743,6 +759,16 @@ private struct WaveformBarStack: View {
 
 private struct SideMediaBubble: View {
     @Bindable var model: IslandModel
+
+    var body: some View {
+        if model.shouldShowSideMediaBubble {
+            SideMediaBubbleContent(model: model)
+        }
+    }
+}
+
+private struct SideMediaBubbleContent: View {
+    @Bindable var model: IslandModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isDetached = false
     @State private var isVisible = false
@@ -797,21 +823,7 @@ private struct SideMediaBubble: View {
         .accessibilityLabel(
             "Open media controls for \(model.homeMediaSnapshot.title)"
         )
-        .task(id: model.shouldShowSideMediaBubble) {
-            guard model.shouldShowSideMediaBubble else {
-                // Expansion always phases the companion away at its current
-                // position. It must not travel toward either the notch or the
-                // expanded Home artwork.
-                withAnimation(.easeOut(duration: 0.12)) {
-                    isVisible = false
-                }
-                try? await Task.sleep(for: .milliseconds(120))
-                guard !model.shouldShowSideMediaBubble else { return }
-                isDetached = false
-                isArtworkVisible = false
-                return
-            }
-
+        .task {
             isDetached = false
             isVisible = false
             isArtworkVisible = false
@@ -1077,35 +1089,86 @@ private struct ExpandedTabbedView: View {
                     .frame(height: 50)
             } else {
                 IslandTabBar(model: model)
-                    .frame(height: 44)
+                    .frame(width: tabBarWidth, height: 44)
+                    .animation(
+                        .spring(response: 0.38, dampingFraction: 0.88),
+                        value: tabBarWidth
+                    )
             }
 
             ZStack {
+                // Use a flexible zero-content base and place retained tabs in
+                // overlays. Overlay children keep their own geometry without
+                // contributing their hidden size to the VStack. Otherwise
+                // Home's 158-point content height forces the active timer's
+                // 88-point content slot taller and pushes the tab bar upward.
+                Color.clear
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .home) {
+                            HomeTabView(model: model)
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .clipboard) {
+                            ClipboardTabView(model: model)
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .timer) {
+                            TimerTabView(model: model)
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        tabLayer(for: .agentic) {
+                            AgenticTabView(model: model)
+                        }
+                    }
+                    .opacity(model.isCalendarDetailPresented ? 0 : 1)
+                    .allowsHitTesting(!model.isCalendarDetailPresented)
+                    .accessibilityHidden(model.isCalendarDetailPresented)
+
                 if model.isCalendarDetailPresented {
                     CalendarDetailView(model: model)
                         .transition(contentTransition)
-                } else {
-                    switch model.selectedTab {
-                    case .home:
-                        HomeTabView(model: model)
-                            .transition(contentTransition)
-                    case .clipboard:
-                        ClipboardTabView(model: model)
-                            .transition(contentTransition)
-                    case .timer:
-                        TimerTabView(model: model)
-                            .transition(contentTransition)
-                    case .agentic:
-                        AgenticTabView(model: model)
-                            .transition(contentTransition)
-                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
         }
-        .animation(.spring(response: 0.38, dampingFraction: 0.88), value: model.selectedTab)
         .animation(.spring(response: 0.4, dampingFraction: 0.9), value: model.isCalendarDetailPresented)
+    }
+
+    private var tabBarWidth: CGFloat {
+        model.selectedTab == .timer && model.isTimerActive
+            ? 680
+            : IslandModel.homeExpandedSurfaceSize.width
+    }
+
+    private func tabLayer<Content: View>(
+        for tab: IslandTab,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let isSelected = model.selectedTab == tab
+        let surfaceSize = model.expandedSurfaceSize(for: tab)
+
+        return content()
+            // Each tab keeps its own final geometry while the centered shell
+            // changes size. In particular, the outgoing 680-point running
+            // timer no longer reflows inside Home's growing 760-point frame.
+            .frame(
+                width: surfaceSize.width,
+                height: max(0, surfaceSize.height - 44),
+                alignment: .top
+            )
+            .opacity(isSelected ? 1 : 0)
+            .scaleEffect(isSelected ? 1 : 0.985, anchor: .top)
+            .allowsHitTesting(isSelected)
+            .accessibilityHidden(!isSelected)
+            .zIndex(isSelected ? 1 : 0)
+            .animation(
+                .spring(response: 0.38, dampingFraction: 0.88),
+                value: isSelected
+            )
     }
 
     private var contentTransition: AnyTransition {
@@ -2114,6 +2177,7 @@ private struct CalendarDayStrip: View {
     let onVisibleDateChange: (Date) -> Void
     @State private var timelineAnchor: Date
     @State private var todayNavigationDirection: TodayNavigationDirection?
+    @State private var isInitialScrollPositioned = false
 
     private let timelineRadius = 730
 
@@ -2201,6 +2265,7 @@ private struct CalendarDayStrip: View {
                             / CalendarDayStripLayout.pitch).rounded()
                     )
                 } action: { _, centeredIndex in
+                    guard isInitialScrollPositioned else { return }
                     let timelineDays = days
                     guard timelineDays.indices.contains(centeredIndex) else { return }
                     onVisibleDateChange(timelineDays[centeredIndex])
@@ -2231,6 +2296,7 @@ private struct CalendarDayStrip: View {
                     }
                     return nil
                 } action: { _, newDirection in
+                    guard isInitialScrollPositioned else { return }
                     todayNavigationDirection = newDirection
                 }
                 .mask {
@@ -2248,9 +2314,19 @@ private struct CalendarDayStrip: View {
                 .frame(height: 40)
             }
             .frame(height: 54)
+            .opacity(isInitialScrollPositioned ? 1 : 0)
             .onAppear {
+                isInitialScrollPositioned = false
+                todayNavigationDirection = nil
                 DispatchQueue.main.async {
                     center(model.selectedCalendarDate, using: proxy, animated: false)
+                    DispatchQueue.main.async {
+                        // Do not expose the ScrollView's temporary leading-edge
+                        // geometry. It otherwise reports the start of the
+                        // four-year timeline for one frame before scrollTo
+                        // reaches the selected day.
+                        isInitialScrollPositioned = true
+                    }
                 }
             }
             .onChange(of: model.selectedCalendarDate) { _, newDate in

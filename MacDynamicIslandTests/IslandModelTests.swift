@@ -368,6 +368,10 @@ final class IslandModelTests: XCTestCase {
         // Expanded geometry is available before hover so SwiftUI can keep the
         // hidden interface laid out at its final width during the shell morph.
         XCTAssertEqual(model.expandedSurfaceSize, CGSize(width: 760, height: 202))
+        XCTAssertEqual(
+            model.expandedSurfaceSize(for: .home),
+            CGSize(width: 760, height: 202)
+        )
         model.setPointerInside(true)
 
         XCTAssertEqual(model.surfaceSize, CGSize(width: 760, height: 202))
@@ -383,6 +387,26 @@ final class IslandModelTests: XCTestCase {
 
         model.presentCalendarDetail()
         XCTAssertEqual(model.surfaceSize, CGSize(width: 760, height: 390))
+    }
+
+    func testActiveTimerTabRetainsItsOwnLayoutSizeWhenHomeIsSelected() {
+        let model = IslandModel()
+        model.timerEndDate = .now.addingTimeInterval(60)
+        model.setPointerInside(true)
+
+        XCTAssertEqual(model.selectedTab, .timer)
+        XCTAssertEqual(
+            model.expandedSurfaceSize(for: .timer),
+            CGSize(width: 680, height: 132)
+        )
+
+        model.selectTab(.home)
+
+        XCTAssertEqual(model.surfaceSize, CGSize(width: 760, height: 202))
+        XCTAssertEqual(
+            model.expandedSurfaceSize(for: .timer),
+            CGSize(width: 680, height: 132)
+        )
     }
 
     func testSelectingAgenticTabRequestsFreshCodexUsage() {

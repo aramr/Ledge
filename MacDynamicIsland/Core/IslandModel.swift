@@ -333,7 +333,11 @@ final class IslandModel {
             return CGSize(width: 760, height: 390)
         }
 
-        switch selectedTab {
+        return expandedSurfaceSize(for: selectedTab)
+    }
+
+    func expandedSurfaceSize(for tab: IslandTab) -> CGSize {
+        switch tab {
         case .home:
             return Self.homeExpandedSurfaceSize
         case .clipboard:
