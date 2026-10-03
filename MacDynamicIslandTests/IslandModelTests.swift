@@ -5,6 +5,69 @@ import XCTest
 
 @MainActor
 final class IslandModelTests: XCTestCase {
+    func testCodexLocatorFindsCurrentBundleAndFallsBackToLegacy() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let current = directory.appendingPathComponent("ChatGPT.app/Contents/Resources/codex-cli/bin/codex")
+        let legacy = directory.appendingPathComponent("Codex.app/Contents/Resources/codex")
+        for url in [current, legacy] {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("#!/bin/sh\n".utf8).write(to: url)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        }
+        XCTAssertEqual(CodexExecutableLocator.resolve(applicationDirectories: [directory], cliURLs: []), current)
+        try FileManager.default.removeItem(at: current)
+        XCTAssertEqual(CodexExecutableLocator.resolve(applicationDirectories: [directory], cliURLs: []), legacy)
+        try FileManager.default.removeItem(at: legacy)
+        XCTAssertNil(CodexExecutableLocator.resolve(applicationDirectories: [directory], cliURLs: []))
+    }
+
+    func testCodexLocatorDiscoversInstallationOnNextLookup() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cli = directory.appendingPathComponent("codex")
+        XCTAssertNil(CodexExecutableLocator.resolve(applicationDirectories: [], cliURLs: [cli]))
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("#!/bin/sh\n".utf8).write(to: cli)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+        XCTAssertEqual(CodexExecutableLocator.resolve(applicationDirectories: [], cliURLs: [cli]), cli)
+    }
+
+    func testBluetoothBaselineAndDuplicateEventsAreSilent() {
+        var tracker = BluetoothConnectionTracker()
+        let now = Date()
+        XCTAssertTrue(tracker.update(["headphones"], at: now, presentNew: false).isEmpty)
+        XCTAssertTrue(tracker.update(["headphones"], at: now.addingTimeInterval(2), presentNew: true).isEmpty)
+        XCTAssertEqual(tracker.update(["headphones", "keyboard"], at: now.addingTimeInterval(4), presentNew: true), ["keyboard"])
+    }
+
+    func testBluetoothBriefDisconnectDoesNotRepeatAlert() {
+        var tracker = BluetoothConnectionTracker()
+        let now = Date()
+        XCTAssertEqual(tracker.update(["airpods"], at: now, presentNew: true), ["airpods"])
+        XCTAssertTrue(tracker.update([], at: now.addingTimeInterval(2), presentNew: true).isEmpty)
+        XCTAssertTrue(tracker.update(["airpods"], at: now.addingTimeInterval(4), presentNew: true).isEmpty)
+        XCTAssertTrue(tracker.update([], at: now.addingTimeInterval(10), presentNew: true).isEmpty)
+        XCTAssertTrue(tracker.update(["airpods"], at: now.addingTimeInterval(12), presentNew: true).isEmpty)
+    }
+
+    func testBluetoothSustainedDisconnectAllowsRealReconnect() {
+        var tracker = BluetoothConnectionTracker()
+        let now = Date()
+        _ = tracker.update(["mouse"], at: now, presentNew: false)
+        _ = tracker.update([], at: now.addingTimeInterval(2), presentNew: true)
+        _ = tracker.update([], at: now.addingTimeInterval(8), presentNew: true)
+        XCTAssertEqual(tracker.update(["mouse"], at: now.addingTimeInterval(10), presentNew: true), ["mouse"])
+    }
+
+    func testBluetoothWearableLinksAreExcluded() {
+        XCTAssertFalse(BluetoothConnectionTracker.isAccessory(name: "Aram’s Apple Watch", majorDeviceClass: 0))
+        XCTAssertFalse(BluetoothConnectionTracker.isAccessory(name: "Wearable", majorDeviceClass: 0x07))
+        XCTAssertFalse(BluetoothConnectionTracker.isAccessory(name: "Apple Watch Phone", majorDeviceClass: 0x02))
+        XCTAssertTrue(BluetoothConnectionTracker.isAccessory(name: "AirPods Pro", majorDeviceClass: 0x04))
+        XCTAssertTrue(BluetoothConnectionTracker.isAccessory(name: "Magic Keyboard", majorDeviceClass: 0x05))
+    }
+
     func testCalendarDayRefreshAdvancesSelectionWhenItWasFollowingToday() {
         let model = IslandModel()
         let firstDay = Calendar.current.date(

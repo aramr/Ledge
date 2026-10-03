@@ -79,7 +79,7 @@ private enum CodexUsageClientError: Error, Sendable {
         case .launchFailed:
             "Codex usage could not be requested."
         case .noUsageResponse:
-            "Sign in to Codex to view your usage."
+            "Sign in to Codex in ChatGPT to view your usage."
         }
     }
 
@@ -92,17 +92,44 @@ private enum CodexUsageClientError: Error, Sendable {
     }
 }
 
+enum CodexExecutableLocator {
+    static func resolve(
+        applicationDirectories: [URL] = [
+            URL(fileURLWithPath: "/Applications"),
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications")
+        ],
+        cliURLs: [URL] = [
+            URL(fileURLWithPath: "/opt/homebrew/bin/codex"),
+            URL(fileURLWithPath: "/usr/local/bin/codex"),
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin/codex")
+        ]
+    ) -> URL? {
+        let bundledURLs = applicationDirectories.flatMap { directory in
+            ["ChatGPT.app", "Codex.app"].flatMap { app in
+                ["Contents/Resources/codex-cli/bin/codex", "Contents/Resources/codex"].map {
+                    directory.appendingPathComponent(app).appendingPathComponent($0)
+                }
+            }
+        }
+        return (bundledURLs + cliURLs).first {
+            FileManager.default.isExecutableFile(atPath: $0.path)
+        }
+    }
+}
+
 private struct CodexUsageClient: Sendable {
     let executableURL: URL?
 
     init(executableURL: URL? = nil) {
-        self.executableURL = executableURL ?? Self.resolveExecutableURL()
+        self.executableURL = executableURL
     }
 
-    var isAvailable: Bool { executableURL != nil }
+    var isAvailable: Bool { resolvedExecutableURL != nil }
+
+    private var resolvedExecutableURL: URL? { executableURL ?? CodexExecutableLocator.resolve() }
 
     func fetch() async -> Result<CodexUsageSnapshot, CodexUsageClientError> {
-        guard let executableURL else { return .failure(.executableMissing) }
+        guard let executableURL = resolvedExecutableURL else { return .failure(.executableMissing) }
 
         return await Task.detached(priority: .utility) {
             Self.performFetch(executableURL: executableURL)
@@ -174,26 +201,6 @@ private struct CodexUsageClient: Sendable {
         let detail = String(data: errorOutput.data, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return .failure(.noUsageResponse(detail))
-    }
-
-    private static func resolveExecutableURL() -> URL? {
-        var candidates = [String]()
-
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        candidates.append(contentsOf: [
-            "/Applications/ChatGPT.app/Contents/Resources/codex",
-            "/Applications/Codex.app/Contents/Resources/codex",
-            home.appendingPathComponent("Applications/ChatGPT.app/Contents/Resources/codex").path,
-            home.appendingPathComponent("Applications/Codex.app/Contents/Resources/codex").path,
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-            home.appendingPathComponent(".local/bin/codex").path
-        ])
-
-        return candidates.lazy
-            .filter { FileManager.default.isExecutableFile(atPath: $0) }
-            .map(URL.init(fileURLWithPath:))
-            .first
     }
 }
 

@@ -9,14 +9,45 @@ private struct BluetoothDeviceReference: @unchecked Sendable {
     let device: IOBluetoothDevice
 }
 
+/// Track connection transitions, allowing brief link interruptions without
+/// announcing the same accessory again. Only a sustained absence ends a session.
+struct BluetoothConnectionTracker {
+    private(set) var connectedIdentifiers: Set<String> = []
+    private var absentSince: [String: Date] = [:]
+    let disconnectGraceInterval: TimeInterval = 6
+
+    mutating func update(_ liveIdentifiers: Set<String>, at now: Date, presentNew: Bool) -> Set<String> {
+        for identifier in connectedIdentifiers.subtracting(liveIdentifiers) {
+            let firstAbsence = absentSince[identifier] ?? now
+            absentSince[identifier] = firstAbsence
+            if now.timeIntervalSince(firstAbsence) >= disconnectGraceInterval {
+                connectedIdentifiers.remove(identifier)
+                absentSince.removeValue(forKey: identifier)
+            }
+        }
+        let newIdentifiers = liveIdentifiers.subtracting(connectedIdentifiers)
+        connectedIdentifiers.formUnion(liveIdentifiers)
+        for identifier in liveIdentifiers {
+            absentSince.removeValue(forKey: identifier)
+        }
+        return presentNew ? newIdentifiers : []
+    }
+
+    static func isAccessory(name: String, majorDeviceClass: UInt32) -> Bool {
+        // Wearable links support Continuity / Auto Unlock rather than a
+        // user-connected Bluetooth accessory in Settings. Check the full name
+        // before icon classification, which also recognizes other name tokens.
+        !name.lowercased().contains("watch") && majorDeviceClass != 0x07
+    }
+}
+
 @MainActor
 final class BluetoothConnectionService: NSObject {
     var onDeviceConnected: ((BluetoothConnectionEvent) -> Void)?
 
     private var connectNotification: IOBluetoothUserNotification?
     private var disconnectNotifications: [String: IOBluetoothUserNotification] = [:]
-    private var connectedDeviceIdentifiers: Set<String> = []
-    private var recentlyPresentedAt: [String: Date] = [:]
+    private var tracker = BluetoothConnectionTracker()
     private var reconciliationTimer: Timer?
 
     func start() {
@@ -48,8 +79,7 @@ final class BluetoothConnectionService: NSObject {
 
         disconnectNotifications.values.forEach { $0.unregister() }
         disconnectNotifications.removeAll()
-        connectedDeviceIdentifiers.removeAll()
-        recentlyPresentedAt.removeAll()
+        tracker = BluetoothConnectionTracker()
     }
 
     @objc
@@ -60,7 +90,8 @@ final class BluetoothConnectionService: NSObject {
         let deviceReference = BluetoothDeviceReference(device: device)
         Task { @MainActor [weak self] in
             guard let self, connectNotification != nil else { return }
-            handleConnectedDevice(deviceReference.device, shouldPresent: true)
+            guard deviceReference.device.isPaired(), deviceReference.device.isConnected() else { return }
+            reconcileConnectedDevices(presentNewConnections: true)
         }
     }
 
@@ -72,46 +103,39 @@ final class BluetoothConnectionService: NSObject {
         let deviceReference = BluetoothDeviceReference(device: device)
         Task { @MainActor [weak self] in
             guard let self, connectNotification != nil else { return }
-            let identifier = identifier(for: deviceReference.device)
-            connectedDeviceIdentifiers.remove(identifier)
-            recentlyPresentedAt.removeValue(forKey: identifier)
-            disconnectNotifications.removeValue(forKey: identifier)?.unregister()
+            // A low-level disconnect can be a transient link interruption.
+            // Reconcile the current state instead of clearing deduplication.
+            _ = deviceReference.device
+            reconcileConnectedDevices(presentNewConnections: true)
         }
     }
 
     private func reconcileConnectedDevices(presentNewConnections: Bool) {
         let devices = (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
-        let connectedDevices = devices.filter { $0.isConnected() }
+        let connectedDevices = devices.filter {
+            $0.isPaired() && $0.isConnected() && BluetoothConnectionTracker.isAccessory(
+                name: $0.name ?? $0.nameOrAddress ?? "",
+                majorDeviceClass: UInt32($0.deviceClassMajor)
+            )
+        }
         let liveIdentifiers = Set(connectedDevices.map(identifier(for:)))
+        let newIdentifiers = tracker.update(liveIdentifiers, at: .now, presentNew: presentNewConnections)
 
-        for identifier in connectedDeviceIdentifiers.subtracting(liveIdentifiers) {
-            connectedDeviceIdentifiers.remove(identifier)
-            recentlyPresentedAt.removeValue(forKey: identifier)
+        for identifier in Array(disconnectNotifications.keys)
+            where !tracker.connectedIdentifiers.contains(identifier) {
             disconnectNotifications.removeValue(forKey: identifier)?.unregister()
         }
 
         for device in connectedDevices {
-            let isNewConnection = !connectedDeviceIdentifiers.contains(identifier(for: device))
-            handleConnectedDevice(
-                device,
-                shouldPresent: presentNewConnections && isNewConnection
-            )
+            let identifier = identifier(for: device)
+            registerForDisconnect(of: device, identifier: identifier)
+            if newIdentifiers.contains(identifier) {
+                presentConnectedDevice(device, identifier: identifier)
+            }
         }
     }
 
-    private func handleConnectedDevice(
-        _ device: IOBluetoothDevice,
-        shouldPresent: Bool
-    ) {
-        let identifier = identifier(for: device)
-        let wasConnected = connectedDeviceIdentifiers.contains(identifier)
-        connectedDeviceIdentifiers.insert(identifier)
-        registerForDisconnect(of: device, identifier: identifier)
-
-        guard shouldPresent, !wasConnected, shouldPresentDevice(identifier: identifier) else {
-            return
-        }
-
+    private func presentConnectedDevice(_ device: IOBluetoothDevice, identifier: String) {
         let rawName = device.name?.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = displayName(rawName: rawName, fallback: device.nameOrAddress)
         let event = BluetoothConnectionEvent(
@@ -135,19 +159,6 @@ final class BluetoothConnectionService: NSObject {
             forDisconnectNotification: self,
             selector: #selector(deviceDidDisconnect(_:device:))
         )
-    }
-
-    private func shouldPresentDevice(identifier: String) -> Bool {
-        let now = Date()
-        defer {
-            recentlyPresentedAt[identifier] = now
-            recentlyPresentedAt = recentlyPresentedAt.filter {
-                now.timeIntervalSince($0.value) < 30
-            }
-        }
-
-        guard let lastPresentation = recentlyPresentedAt[identifier] else { return true }
-        return now.timeIntervalSince(lastPresentation) >= 3
     }
 
     private func identifier(for device: IOBluetoothDevice) -> String {

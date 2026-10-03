@@ -363,7 +363,7 @@ private struct AgenticSettingsView: View {
         case .checking: "Looking for your local Codex account."
         case .connected: "Seven-day usage is available in Ledge."
         case .notInstalled: "Install Codex and sign in to show your usage."
-        case .signInRequired: "Open Codex and complete sign-in, then refresh."
+        case .signInRequired: "Open ChatGPT and sign in to Codex, then refresh."
         case .unavailable: "Codex was found, but its usage service could not be reached."
         }
     }
@@ -383,7 +383,7 @@ private struct AgenticSettingsView: View {
         case .checking: nil
         case .connected, .unavailable: "Refresh"
         case .notInstalled: "Get Codex"
-        case .signInRequired: "Open Codex"
+        case .signInRequired: "Open ChatGPT"
         }
     }
 
