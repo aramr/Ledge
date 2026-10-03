@@ -1,0 +1,57 @@
+name: Update Homebrew
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published release version (for example 1.0.1)
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    secrets:
+      HOMEBREW_TAP_DEPLOY_KEY:
+        required: true
+
+permissions:
+  contents: read
+  attestations: read
+
+concurrency:
+  group: homebrew-tap
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.repository == 'aramr/Ledge'
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - name: Check out automation
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Download and verify published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          latest_tag="$(gh release view --repo aramr/Ledge --json tagName --jq .tagName)"
+          test "$latest_tag" = "v$VERSION"
+          mkdir -p "$RUNNER_TEMP/homebrew-release"
+          gh release download "v$VERSION" --repo aramr/Ledge \
+            --dir "$RUNNER_TEMP/homebrew-release" --pattern "Ledge-$VERSION.dmg"
+          gh attestation verify "$RUNNER_TEMP/homebrew-release/Ledge-$VERSION.dmg" --repo aramr/Ledge
+
+      - name: Authenticate, audit, and update tap
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          VERSION: ${{ inputs.version }}
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: Scripts/update-homebrew-tap.sh "$VERSION" "$RUNNER_TEMP/homebrew-release/Ledge-$VERSION.dmg"

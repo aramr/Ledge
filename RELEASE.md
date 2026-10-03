@@ -91,7 +91,15 @@ The release workflow:
 7. publishes the immutable GitHub Release with categorized release notes;
 8. updates and audits the Homebrew cask.
 
-All build, signing, notarization, verification, and attestation gates run before publication. If the later Homebrew update fails, the signed direct download and Sparkle update remain available from GitHub while the tap can be repaired independently.
+All build, signing, notarization, verification, and attestation gates run before publication. Homebrew updates run in a separate job after publication. That job downloads and verifies the published DMG's GitHub attestation, reads the public tap over HTTPS, and uses the scoped deploy key explicitly for pushes. A matching version and checksum are a successful no-op.
+
+If the Homebrew job fails, rerun only the failed job, or dispatch the standalone workflow without rebuilding or republishing the immutable release:
+
+```sh
+gh workflow run homebrew.yml --repo aramr/Ledge -f version=1.0.1
+```
+
+The workflow only accepts the latest published release to prevent accidental downgrades. Authentication errors are reported before cask generation or audit; the key fingerprint is safe to compare with the tap's registered deploy key. Private key material is never logged.
 
 ## Local release verification
 
