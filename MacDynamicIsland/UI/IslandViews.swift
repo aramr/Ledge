@@ -1817,7 +1817,7 @@ private struct AgentUsageEmptyState: View {
         case .signInRequired:
             provider == .claude
                 ? "Open Claude and complete sign-in, then check again."
-                : "Open Codex, complete sign-in, then return here and check again."
+                : "Open ChatGPT, sign in to Codex, then return here and check again."
         case .unavailable:
             errorMessage ?? "\(provider.title) is installed, but its usage service is temporarily unavailable."
         }

@@ -56,8 +56,8 @@ Control active media, view artwork and live playback progress, and check upcomin
 - **Calendar:** a scrollable date strip and upcoming Apple Calendar events, with a dedicated full-calendar route.
 - **Clipboard:** recent copied text and screenshots, multi-selection, keyboard shortcuts, Quick Look, and drag export. History stays in memory and is discarded when Ledge quits.
 - **Timer:** a ruler-style 1–120 minute picker, smooth compact countdown, pause/resume, and an alarm sound.
-- **Agentic:** local Codex and Claude usage limits, reset dates, connection state, and manual refresh.
-- **Bluetooth:** compact connection alerts for supported headphones and devices.
+- **Agentic:** local Codex (including Codex in ChatGPT) and Claude usage limits, reset dates, connection state, and manual refresh.
+- **Bluetooth:** compact connection alerts for paired, connected accessories. Apple Watch ecosystem links are excluded, and brief link interruptions do not repeat alerts.
 - **Notch-aware design:** uses the physical MacBook notch when available and falls back to a centered island on external displays.
 - **Native macOS behavior:** menu-bar-only, no Dock icon, all-Spaces support, full-screen compatibility, and permission-aware integrations.
 
